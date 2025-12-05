@@ -43,16 +43,16 @@ void Lab4::Init()
 
     // Parameters related to surface generation
     no_of_generated_points = 10;            // number of points on a Bezier curve
-    no_of_instances = 5;                    // number of instances (number of curves that contain the surface)
-    max_translate = 8.0f;                   // for the translation surface, it's the distance between the first and the last curve
+    no_of_instances = 10;                    // number of instances (number of curves that contain the surface)
+    max_translate = 0.0f;                   // for the translation surface, it's the distance between the first and the last curve
     max_rotate = glm::radians(360.0f);      // for the rotation surface, it's the angle between the first and the last curve
     surface_type = 0;
 
     // Define control points
-    control_p0 = glm::vec3(-4.0, -2.5,  1.0);
-    control_p1 = glm::vec3(-2.5,  1.5,  1.0);
-    control_p2 = glm::vec3(-1.5,  3.0,  1.0);
-    control_p3 = glm::vec3(-4.0,  5.5,  1.0);
+    control_p0 = glm::vec3(0, 0, 0);
+    control_p1 = glm::vec3(-6, -0.5, 0);
+    control_p2 = glm::vec3(0, 0, 0);
+    control_p3 = glm::vec3(0, 5.5, 0);
 
     // Create a bogus mesh with 2 points (a line)
     {

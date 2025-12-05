@@ -82,7 +82,7 @@ void Lab2::Init()
     lightBuffer->Generate(resolution.x, resolution.y, 1, false);
     //lightBuffer contains 1 texture (light accumulation)
 
-    for (int i = 0; i < 40; ++i)
+    for (int i = 0; i < 10; ++i)
     {
         LightInfo lightInfo;
 
