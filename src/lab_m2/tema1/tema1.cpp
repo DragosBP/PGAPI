@@ -217,8 +217,8 @@ void Tema1::Init()
         light.far_plane = 32.0f;
         
         glm::ivec2 resolution = window->GetResolution();
-        light.width = resolution.x;
-        light.height = resolution.y;
+        light.width = 2048;
+        light.height = 2048;
 
         framebuffer_object = 0;
         color_texture = 0;
@@ -520,14 +520,18 @@ void Tema1::Update(float deltaTimeSeconds)
                 glUniform1f(glGetUniformLocation(shader->program, "max_translate"), table.max_translate[i]);
                 glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), table.no_of_instances);
 
+                int shouldFlip = 0;
                 if (i < 4)
                 {
                     glUniform1i(glGetUniformLocation(shader->program, "rotate"), i % 2);
+                    if (i == 2 || i == 3) shouldFlip = 1;
                 }
                 else {
                     glUniform1i(glGetUniformLocation(shader->program, "rotate"), 0);
+                    if (i == 4) shouldFlip = 1;
                 }
 
+               glUniform1i(glGetUniformLocation(shader->program, "flip_normal_in"), shouldFlip);
                 Mesh* mesh = meshes["surface"];
 
                 // Draw the object instanced

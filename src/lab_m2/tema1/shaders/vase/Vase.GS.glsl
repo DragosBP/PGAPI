@@ -82,7 +82,12 @@ void main()
         texture_coord = vec2(t2, v1);
         world_position = point_row1_b;
 
-        green_arrow = normalize(point_row1_c - point_row1_b);
+        if (i < NO_OF_GENERATED_POINTS - 2) {
+            green_arrow = normalize(point_row1_c - point_row1_b);
+        } else {
+            // Use the previous tangent for the very last point
+            green_arrow = normalize(point_row1_b - point_row1_a);
+        }
         red_arrow   = normalize(point_row2_b - point_row1_b);
         world_normal = normalize(cross(green_arrow, red_arrow));
 
@@ -102,7 +107,12 @@ void main()
         texture_coord = vec2(t2, v2);
         world_position = point_row2_b;
 
-        green_arrow = normalize(point_row2_c - point_row2_b);
+        if (i < NO_OF_GENERATED_POINTS - 2) {
+            green_arrow = normalize(point_row2_c - point_row2_b);
+        } else {
+             // Use the previous tangent for the very last point
+            green_arrow = normalize(point_row2_b - point_row2_a);
+        }
         red_arrow   = normalize(point_row3_b - point_row2_b);
         world_normal = normalize(cross(green_arrow, red_arrow));
 
