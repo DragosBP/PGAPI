@@ -221,8 +221,7 @@ void Tema1::LoadShader(const std::string& name)
     std::string folder_name = name;
     folder_name[0] = std::tolower(folder_name[0]);
 
-    // Create a shader program for particle system
-    {
+    if (name == "Table" || name == "TableLeg" || name == "Vase" || name == "Lamp" || name == "TvBody") {
         Shader* shader = new Shader(name);
         shader->AddShader(PATH_JOIN(shaderPath, "VertexShader.glsl"), GL_VERTEX_SHADER);
         shader->AddShader(PATH_JOIN(shaderPath, folder_name, name + ".GS.glsl"), GL_GEOMETRY_SHADER);
@@ -230,8 +229,18 @@ void Tema1::LoadShader(const std::string& name)
 
         shader->CreateAndLink();
         shaders[shader->GetName()] = shader;
+    } else {
+        Shader* shader = new Shader(name);
+        shader->AddShader(PATH_JOIN(shaderPath, folder_name, name + ".VS.glsl"), GL_VERTEX_SHADER);
+        shader->AddShader(PATH_JOIN(shaderPath, folder_name, name + ".GS.glsl"), GL_GEOMETRY_SHADER);
+        shader->AddShader(PATH_JOIN(shaderPath, folder_name, name + ".FS.glsl"), GL_FRAGMENT_SHADER);
+
+        shader->CreateAndLink();
+        shaders[shader->GetName()] = shader;
     }
 }
+
+
 
 void Tema1::Init()
 {
