@@ -4,9 +4,10 @@
 in vec2 texture_coord;
 in vec3 world_position;
 in vec3 world_normal;
+in vec3 local_position;  // For cubemap sampling
 
 // Uniform properties
-uniform sampler2D texture_1;
+uniform samplerCube texture_cubemap;
 uniform sampler2D depth_texture;
 
 uniform int light_view;
@@ -106,12 +107,12 @@ vec3 SpotLight()
 
 void main()
 {
-    vec4 texture_color = texture(texture_1, texture_coord);
-   
-   if (texture_color.a < 0.75) {
-        discard;
-    }
+    // Calculate direction from cubemap center using local position
+    vec3 cubemap_dir = normalize(local_position);
     
+    // Sample the cubemap using the direction vector
+    vec4 texture_color = texture(texture_cubemap, cubemap_dir);
+   
     vec3 color = vec3(texture_color);
     if (light_view == 1) {
         color = color * SpotLight();

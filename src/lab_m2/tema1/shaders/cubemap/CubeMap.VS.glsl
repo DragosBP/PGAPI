@@ -15,10 +15,15 @@ out vec2 texture_coord;
 
 out vec3 world_position;
 out vec3 world_normal;
+out vec3 local_position;  // For cubemap sampling
 
 void main()
 {
-    world_position = vec3(Model * vec4(v_position,1));
+    // Local position for cubemap direction sampling
+    local_position = v_position;
+    
+    // Actual world position for lighting calculations
+    world_position = vec3(Model * vec4(v_position, 1));
     world_normal = mat3(Model) * v_normal;
 
     texture_coord = v_texture_coord;

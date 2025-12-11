@@ -113,7 +113,7 @@ void Tema1::InitVase(float scale, glm::vec3 translation) {
     vase.no_of_instances = 20;
     vase.max_rotate = glm::radians(360.0);
     
-    vase.translation = translation * scale;
+    vase.translation = translation;
     vase.control_points[0] = glm::vec3(0.018 * scale, 0.0, 0.0);
     vase.control_points[1] = glm::vec3(0.006 * scale, vase.height / 3, 0.0);
     vase.control_points[2] = glm::vec3(0.044 * scale, 2 * vase.height / 3, 0.0);
@@ -154,13 +154,28 @@ void Tema1::InitLamp(float scale, glm::vec3 translation) {
 
 void Tema1::InitTV(int scale, glm::vec3 position) {
     tv.position = position;
-    tv.rotationY = 0.0f;
+    tv.rotationY = 270.0f;
     
-    // Set TV size (cube)
+    // Set TV size (body)
     float size = (float)scale / 12.0f;
     tv.length = size * 2.0f;
     
     tv.position.y += size;
+
+    // Screen details
+    tv.screen.height = size * 1.5;
+    tv.screen.no_of_instances = 20;
+    tv.screen.max_rotate = glm::radians(180.0);
+    
+    tv.screen.translation = tv.position;
+    tv.screen.translation.z += size;
+    tv.screen.translation.y -= size / 2;
+
+    tv.screen.control_points[0] = glm::vec3(scale * 0.05, 0, 0);
+    tv.screen.control_points[1] = glm::vec3(scale * 0.06, -tv.screen.height / 10, 0);
+    tv.screen.control_points[2] = glm::vec3(scale * 0.06, tv.screen.height, 0);
+    tv.screen.control_points[3] = glm::vec3(scale * 0.05, 3 * tv.screen.height / 4, 0);
+
 }
 
 void Tema1::InitCubemap(int scale, glm::vec3 position) {
@@ -243,8 +258,8 @@ void Tema1::Init()
 
         TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "vase.jpg");
 
-        InitVase(scale, glm::vec3(1.25, (tables[0].height + tables[0].leg.height) / scale, 0.25));
-        InitVase(scale, glm::vec3(1.25, (tables[0].height + tables[0].leg.height) / scale, 0.75));
+        InitVase(scale, glm::vec3(1.25 * scale, (tables[0].height + tables[0].leg.height), 0.25 * scale));
+        InitVase(scale, glm::vec3(1.25 * scale, (tables[0].height + tables[0].leg.height), 0.75 * scale));
     }
 
     // Lamp details
@@ -260,10 +275,12 @@ void Tema1::Init()
     // TV screen detais
     {
         LoadShader("TvBody");
+        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "tv.jpg"); // For the body
+        
+        LoadShader("TvScreen");
+        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "black.jpg"); // For the screen
 
-        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "tv.jpg");
         InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
-
     }
 
     // Cubemap details
@@ -274,7 +291,7 @@ void Tema1::Init()
         {
             Shader* shader = new Shader("Cubemap");
             shader->AddShader(PATH_JOIN(shaderPath, "cubemap", "Cubemap.VS.glsl"), GL_VERTEX_SHADER);
-            shader->AddShader(PATH_JOIN(shaderPath, "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, "cubemap", "Cubemap.FS.glsl"), GL_FRAGMENT_SHADER);
             shader->CreateAndLink();
             shaders[shader->GetName()] = shader;
         }
@@ -293,14 +310,14 @@ void Tema1::Init()
         InitCubemap(scale, glm::vec3(0.75f, 0.0f, 0.75f));
 
         // Load cubemap textures
-        std::string texturePath = PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES, "grey_room");
+        std::string texturePath = PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES, "cube");
         cubemap_texture_id = UploadCubeMapTexture(
-            PATH_JOIN(texturePath, "pos_x.jpg"),
-            PATH_JOIN(texturePath, "pos_y.jpg"),
-            PATH_JOIN(texturePath, "pos_z.jpg"),
-            PATH_JOIN(texturePath, "neg_x.jpg"),
-            PATH_JOIN(texturePath, "neg_y.jpg"),
-            PATH_JOIN(texturePath, "neg_z.jpg"));
+            PATH_JOIN(texturePath, "pos_x.png"),
+            PATH_JOIN(texturePath, "pos_y.png"),
+            PATH_JOIN(texturePath, "pos_z.png"),
+            PATH_JOIN(texturePath, "neg_x.png"),
+            PATH_JOIN(texturePath, "neg_y.png"),
+            PATH_JOIN(texturePath, "neg_z.png"));
 
         // Create cubemap framebuffer
         cubemap_framebuffer_object = 0;
@@ -891,26 +908,56 @@ void Tema1::Update(float deltaTimeSeconds)
 
         // TV Screen
         {
-            Shader* shader = shaders["TvBody"];
-            shader->Use();
+            Shader* body_shader = shaders["TvBody"];
+            body_shader->Use();
 
-            glUniform1f(glGetUniformLocation(shader->program, "tv_length"), tv.length);
+            glUniform1f(glGetUniformLocation(body_shader->program, "tv_length"), tv.length);
 
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix = glm::translate(modelMatrix, tv.position);
             modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
 
-            Mesh* mesh = meshes["surface"];
-            RenderMeshInstanced(mesh, shader, modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
+            Mesh* body_mesh = meshes["surface"];
+            RenderMeshInstanced(body_mesh, body_shader, modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
+            
+            Shader* screen_shader = shaders["TvScreen"];
+            screen_shader->Use();
+
+            // Send uniforms to shaders
+            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p0"), tv.screen.control_points[0].x, tv.screen.control_points[0].y, tv.screen.control_points[0].z);
+            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p1"), tv.screen.control_points[1].x, tv.screen.control_points[1].y, tv.screen.control_points[1].z);
+            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p2"), tv.screen.control_points[2].x, tv.screen.control_points[2].y, tv.screen.control_points[2].z);
+            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p3"), tv.screen.control_points[3].x, tv.screen.control_points[3].y, tv.screen.control_points[3].z);
+            glUniform1f(glGetUniformLocation(screen_shader->program, "max_rotate"), tv.screen.max_rotate);
+            glUniform1i(glGetUniformLocation(screen_shader->program, "no_of_instances"), tv.screen.no_of_instances);
+
+            modelMatrix = glm::mat4(1);
+            modelMatrix = glm::translate(modelMatrix, tv.screen.translation); // Translate to TV position
+
+            
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -tv.length / 2)); // Translate relative to the TV
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0)); // Roatate around the TV center
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, tv.length / 2)); // Translate to origin for rotation
+
+            Mesh* screen_mesh = meshes["surface"];
+            RenderMeshInstanced(screen_mesh, screen_shader, modelMatrix, tv.screen.no_of_instances, step, TextureManager::GetTexture("black.jpg"));
         }
 
         // Skybox
         {
+            Shader* shader = shaders["Cubemap"];
+            shader->Use();
+            
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix = glm::translate(modelMatrix, cubemap.position);
             modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
 
-            RenderMeshInstanced(cubemap.body, shaders["Cubemap"], modelMatrix, 1, step, TextureManager::GetTexture("grey.png"));
+            // Bind the cubemap texture
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
+            glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 0);
+
+            RenderMeshInstanced(cubemap.body, shader, modelMatrix, 1, step, nullptr);
         }
     }
 

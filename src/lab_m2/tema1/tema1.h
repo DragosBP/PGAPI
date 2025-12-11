@@ -103,11 +103,13 @@ namespace m2
         };
         Light light;
 
-        // TV Screen info
+        // TV info
         struct TV {
             glm::vec3 position;
             float rotationY;
             float length;
+            
+            RotationTranlation screen;
         };
         TV tv;
 
