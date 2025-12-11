@@ -117,6 +117,7 @@ vec3 myReflect()
 
 // Debug mode: 0 = normal, 1 = normals, 2 = world_pos, 3 = view_dir, 4 = reflect_dir, 5 = cubemap, 6 = check cubemap
 uniform int debug_mode;
+uniform sampler2D tv_particles_texture;
 
 void main()
 {
@@ -155,10 +156,18 @@ void main()
                 if (debug_mode == 5) {
                     color = cubemap_color;
                 } else if (debug_mode == 6) {
-                    // White if cubemap returns color, black if zero
                     color = vec3(length(cubemap_color) > 0.001 ? 1.0 : 0.0);
                 } else {
-                    color = cubemap_color;
+                    // Particles
+                    vec4 particles_color = texture(tv_particles_texture, texture_coord);
+                    
+                    // if (particles_color.a < 0.05) {
+                    //     discard;
+                    // }
+
+                    // color = cubemap_color;
+                    color = mix(cubemap_color, vec3(particles_color), 0.25);
+                    // color = particles_color.rgb;
                 }
             }
             alpha = 0;

@@ -62,7 +62,8 @@ namespace m2
         void InitCubemap(int scale, glm::vec3 position);
         
         void InitTvFireworkParticles();
-        void RenderTvContentToTexture(float deltaTimeSeconds);
+        void RenderTvContentToTexture(Shader* shader, unsigned int tetxtureID, float deltaTimeSeconds);
+        void DrawTvFramebufferTextures(float deltaTimeSeconds);
         
         void FrameStart() override;
         void Update(float deltaTimeSeconds) override;
@@ -188,7 +189,8 @@ namespace m2
         float firework_particle_offset = 0.02f;
         float firework_time = 0.0f;
 
-        // TV Content framebuffer (for rendering particles onto TV screen)
+        // TV Content framebuffer
+        bool draw_tv_framebuffer_textures = false;
         unsigned int tv_framebuffer_object = 0;
         unsigned int tv_color_texture = 0;
         unsigned int tv_depth_texture = 0;

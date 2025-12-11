@@ -326,17 +326,10 @@ void Tema1::Init()
         InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
 
         // TV Content Framebuffer and Particle Effect
+        LoadShader("TvFirework");
         CreateTvContentFramebuffer(tv_texture_width, tv_texture_height);
 
         // Load shader for rendering particles to TV texture (2D screen-space)
-        std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders", "tvScreen");
-        Shader* shader = new Shader("TvFirework");
-        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.VS.glsl"), GL_VERTEX_SHADER);
-        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.FS.glsl"), GL_FRAGMENT_SHADER);
-        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.GS.glsl"), GL_GEOMETRY_SHADER);
-        shader->CreateAndLink();
-        shaders[shader->GetName()] = shader;
-
         TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "particle2.png");
 
         InitTvFireworkParticles();
@@ -740,6 +733,7 @@ void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &mod
     }
 }
 
+// Testing shadows
 void Tema1::DrawFramebufferTextures()
 {
     int screenPosX = window->GetResolution().x - 950;
@@ -791,6 +785,48 @@ void Tema1::RenderTextureScreen(Shader* shader, unsigned int textureID)
     glDrawElements(meshes["quad"]->GetDrawMode(), static_cast<int>(meshes["quad"]->indices.size()), GL_UNSIGNED_INT, 0);
 }
 
+
+// Testing fireworks
+void Tema1::DrawTvFramebufferTextures(float deltaTimeSeconds)
+{
+    int width = 400;
+    int height = 400;
+
+    int screenPosX = (window->props.resolution.x - width) / 2;
+    int screenPosY = (window->props.resolution.y - height) / 2;
+
+    if (tv_color_texture) 
+    {
+        glViewport(screenPosX, screenPosY, width, height);
+        RenderTvContentToTexture(shaders["TvFirework"], tv_color_texture, deltaTimeSeconds);
+    }
+}
+
+void Tema1::RenderTvContentToTexture(Shader *shader, unsigned int textureID, float deltaTimeSeconds) {
+    if (!shader || !shader->GetProgramID())
+        return;
+
+    // Draw the object
+    glEnable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glBlendEquation(GL_FUNC_ADD);
+
+    shader->Use();
+
+    glUniform3f(glGetUniformLocation(shader->program, "generator_position"), firework_generator_position.x, firework_generator_position.y, firework_generator_position.z);
+    glUniform1f(glGetUniformLocation(shader->program, "deltaTime"), deltaTimeSeconds);
+    glUniform1f(glGetUniformLocation(shader->program, "offset"), firework_particle_offset);
+    
+    // Set texture uniform
+    TextureManager::GetTexture("particle2.png")->BindToTextureUnit(GL_TEXTURE0);
+    tvFireworkEffect->Render(GetSceneCamera(), shader);
+
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+}
+
+// Rendering objects
 void Tema1::RenderObjects(int renderMode, Shader* cubemapShader)
 {
     // renderMode: 0 = cubemap pass (render into cubemap, no TV screen reflection)
@@ -895,7 +931,7 @@ void Tema1::RenderObjects(int renderMode, Shader* cubemapShader)
         RenderMeshInstanced(meshes["surface"], shader, model, lamp.head.no_of_instances, step, TextureManager::GetTexture("white.png"));
     }
 
-    // TV Body (don't render in cubemap pass to avoid self-reflection)
+    // TV Body 
     if (renderMode != 0) 
     {
         Shader* body_shader = shaders["TvBody"];
@@ -927,6 +963,11 @@ void Tema1::RenderObjects(int renderMode, Shader* cubemapShader)
             glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
             glUniform1i(glGetUniformLocation(screen_shader->program, "texture_cubemap"), 2);
         }
+
+        // Bind the FBO particle texture for TV screen
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, tv_color_texture);
+        glUniform1i(glGetUniformLocation(screen_shader->program, "tv_particles_texture"), 3);
 
         glm::mat4 modelMatrix = glm::mat4(1);
         modelMatrix = glm::translate(modelMatrix, tv.screen.translation);
@@ -965,7 +1006,7 @@ void Tema1::Update(float deltaTimeSeconds)
     glm::quat camRotation = camera->m_transform->GetWorldRotation();
     auto projectionInfo = camera->GetProjectionInfo();
 
-    // Render scene into cubemap (6 passes, one for each face)
+    // Render scene into cubemap
     if (cubemap_framebuffer_object)
     {
         glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
@@ -1008,8 +1049,8 @@ void Tema1::Update(float deltaTimeSeconds)
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    // Shadow pass (step 0) and main render pass (step 1)
-    for (int step = 0; step < 2; step++) {
+    // Shadow pass and main render pass and firework render pass
+    for (int step = 0; step < 3; step++) {
         if (step == 0) {
             // Render the scene from the light source view
             camera->SetPosition(light.pos);
@@ -1026,7 +1067,7 @@ void Tema1::Update(float deltaTimeSeconds)
             // Render objects for shadow pass (mode 1)
             RenderObjects(1, nullptr);
         }
-        else {
+        else if (step == 1) {
             // Render the scene from the player's view
             camera->SetPosition(camPosition);
             camera->SetRotation(camRotation);
@@ -1047,12 +1088,50 @@ void Tema1::Update(float deltaTimeSeconds)
             RenderObjects(2, nullptr);
 
             // Render TV firework particles on top
+        } else {
+            // Render the fireworks in the FBO
+             
+            // Bind to the firework FBO
+            glBindFramebuffer(GL_FRAMEBUFFER, tv_framebuffer_object);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glViewport(0, 0, 400, 400);
+
+            // Draw the object
+            glEnable(GL_BLEND);
+            glDisable(GL_DEPTH_TEST);
+            glBlendFunc(GL_ONE, GL_ONE);
+            glBlendEquation(GL_FUNC_ADD);
+
+            Shader* shader = shaders["TvFirework"];
+            shader->Use();
+
+            glUniform3f(glGetUniformLocation(shader->program, "generator_position"), firework_generator_position.x, firework_generator_position.y, firework_generator_position.z);
+            glUniform1f(glGetUniformLocation(shader->program, "deltaTime"), deltaTimeSeconds);
+            glUniform1f(glGetUniformLocation(shader->program, "offset"), firework_particle_offset);
+            
+            // Set texture uniform
+            TextureManager::GetTexture("particle2.png")->BindToTextureUnit(GL_TEXTURE0);
+            tvFireworkEffect->Render(GetSceneCamera(), shader);
+
+            glEnable(GL_DEPTH_TEST);
+            glDisable(GL_BLEND);
+
             firework_time += deltaTimeSeconds;
         }
     }
 
+    // To make sure we render the screen again
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glm::ivec2 resolution = window->GetResolution();
+    glViewport(0, 0, resolution.x, resolution.y);
+
     if (draw_framebuffer_textures) {
         DrawFramebufferTextures();
+    }
+
+    if (draw_tv_framebuffer_textures) {
+        DrawTvFramebufferTextures(deltaTimeSeconds);
     }
 }
 
@@ -1175,6 +1254,9 @@ void Tema1::OnKeyPress(int key, int mods)
     }
     if (key == GLFW_KEY_F1) {
         draw_framebuffer_textures = !draw_framebuffer_textures;
+    }
+    if (key == GLFW_KEY_F2) {
+        draw_tv_framebuffer_textures = !draw_tv_framebuffer_textures;
     }
 }
 

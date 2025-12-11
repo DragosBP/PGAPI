@@ -2,11 +2,12 @@
 
 // Input: points from vertex shader
 layout(points) in;
+
 // Output: quad as triangle strip
 layout(triangle_strip, max_vertices = 4) out;
 
 // Uniform properties
-uniform float offset;  // Particle size
+uniform float offset;
 
 // Input from vertex shader
 in float vert_lifetime[1];
