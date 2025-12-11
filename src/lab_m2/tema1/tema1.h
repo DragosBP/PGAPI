@@ -107,8 +107,7 @@ namespace m2
         struct TV {
             glm::vec3 position;
             float rotationY;
-            std::string name;
-            Mesh* body;
+            float length;
         };
         TV tv;
 

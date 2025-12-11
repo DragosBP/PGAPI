@@ -155,70 +155,12 @@ void Tema1::InitLamp(float scale, glm::vec3 translation) {
 void Tema1::InitTV(int scale, glm::vec3 position) {
     tv.position = position;
     tv.rotationY = 0.0f;
-    tv.name = "TvBody";
-
-    // Create cube mesh with texture coordinates
-    glm::vec3 cube_center = glm::vec3(0, 0, 0);
-    float deltaH = (float)scale / 10.0f;
-
-    tv.position.y += deltaH;
-
-    std::vector<VertexFormat> vertices = {
-        // Front face (z+)
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-        
-        // Back face (z-)
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-        
-        // Top face (y+)
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-        
-        // Bottom face (y-)
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-        
-        // Right face (x+)
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-        
-        // Left face (x-)
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
-        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
-    };
-
-    std::vector<unsigned int> indices = {
-        // Front
-        0, 1, 2,    2, 1, 3,
-        // Back
-        4, 5, 6,    6, 5, 7,
-        // Top
-        8, 9, 10,   10, 9, 11,
-        // Bottom
-        12, 13, 14, 14, 13, 15,
-        // Right
-        16, 17, 18, 18, 17, 19,
-        // Left
-        20, 21, 22, 22, 21, 23,
-    };
-
-    tv.body = new Mesh(tv.name);
-    tv.body->InitFromData(vertices, indices);
-    meshes[tv.name] = tv.body;
+    
+    // Set TV size (cube)
+    float size = (float)scale / 12.0f;
+    tv.length = size * 2.0f;
+    
+    tv.position.y += size;
 }
 
 void Tema1::InitCubemap(int scale, glm::vec3 position) {
@@ -317,20 +259,7 @@ void Tema1::Init()
 
     // TV screen detais
     {
-        // The body
-        std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders");
-        std::string folder_name = "tvBody";
-        folder_name[0] = std::tolower(folder_name[0]);
-
-        // Create a shader program for particle system
-        {
-            Shader* shader = new Shader("tvBody");
-            shader->AddShader(PATH_JOIN(shaderPath, folder_name, "TvBody.VS.glsl"), GL_VERTEX_SHADER);
-            shader->AddShader(PATH_JOIN(shaderPath, "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
-
-            shader->CreateAndLink();
-            shaders[shader->GetName()] = shader;
-        }
+        LoadShader("TvBody");
 
         TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "tv.jpg");
         InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
@@ -962,12 +891,17 @@ void Tema1::Update(float deltaTimeSeconds)
 
         // TV Screen
         {
+            Shader* shader = shaders["TvBody"];
+            shader->Use();
+
+            glUniform1f(glGetUniformLocation(shader->program, "tv_length"), tv.length);
+
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix = glm::translate(modelMatrix, tv.position);
             modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
 
-            // RenderMesh(tv.body, shaders["Simple"], modelMatrix);
-            RenderMeshInstanced(tv.body, shaders["tvBody"], modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
+            Mesh* mesh = meshes["surface"];
+            RenderMeshInstanced(mesh, shader, modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
         }
 
         // Skybox
