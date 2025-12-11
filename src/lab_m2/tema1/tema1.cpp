@@ -169,12 +169,12 @@ void Tema1::InitTV(int scale, glm::vec3 position) {
     
     tv.screen.translation = tv.position;
     tv.screen.translation.z += size;
-    tv.screen.translation.y -= size / 2;
+    tv.screen.translation.y -= size / 4 * 3;
 
     tv.screen.control_points[0] = glm::vec3(scale * 0.05, 0, 0);
     tv.screen.control_points[1] = glm::vec3(scale * 0.06, -tv.screen.height / 10, 0);
     tv.screen.control_points[2] = glm::vec3(scale * 0.06, tv.screen.height, 0);
-    tv.screen.control_points[3] = glm::vec3(scale * 0.05, 3 * tv.screen.height / 4, 0);
+    tv.screen.control_points[3] = glm::vec3(scale * 0.05, tv.screen.height, 0);
 
 }
 
@@ -985,10 +985,10 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
 
     auto keyMaps = std::vector<std::pair<glm::vec3 &, uint32_t>>
     {
-        { lamp.head.control_points[0], GLFW_KEY_1},
-        { lamp.head.control_points[1], GLFW_KEY_2 },
-        { lamp.head.control_points[2], GLFW_KEY_3 },
-        { lamp.head.control_points[3], GLFW_KEY_4 }
+        { tv.screen.control_points[0], GLFW_KEY_1 },
+        { tv.screen.control_points[1], GLFW_KEY_2 },
+        { tv.screen.control_points[2], GLFW_KEY_3 },
+        { tv.screen.control_points[3], GLFW_KEY_4 }
     };
 
     for (const auto &k : keyMaps)
@@ -1020,10 +1020,10 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
                 k.first.x += delta / 10;
             }
 
-            std::cout << glm::vec2(lamp.head.control_points[0]);
-            std::cout << glm::vec2(lamp.head.control_points[1]);
-            std::cout << glm::vec2(lamp.head.control_points[2]);
-            std::cout << glm::vec2(lamp.head.control_points[3]) << "\n";
+            std::cout << "Control Points: " << glm::vec2(tv.screen.control_points[0]);
+            std::cout << glm::vec2(tv.screen.control_points[1]);
+            std::cout << glm::vec2(tv.screen.control_points[2]);
+            std::cout << glm::vec2(tv.screen.control_points[3]) << "\n";
         }
     }
 
@@ -1071,14 +1071,6 @@ void Tema1::OnKeyPress(int key, int mods)
     }
     if (key == GLFW_KEY_F1) {
         draw_framebuffer_textures = !draw_framebuffer_textures;
-    }
-
-    // Debug mode controls: 0-6 keys to switch debug visualization
-    // 0 = normal reflection, 1 = normals, 2 = world_pos, 3 = view_dir,
-    // 4 = reflect_dir, 5 = cubemap sample, 6 = cubemap validity check
-    if (key >= GLFW_KEY_0 && key <= GLFW_KEY_6) {
-        debug_mode = key - GLFW_KEY_0;
-        std::cout << "Debug mode: " << debug_mode << std::endl;
     }
 }
 
