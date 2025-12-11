@@ -178,6 +178,40 @@ void Tema1::InitTV(int scale, glm::vec3 position) {
 
 }
 
+void Tema1::InitTvFireworkParticles() {
+    unsigned int nrParticles = 2000;
+
+    tvFireworkEffect = new ParticleEffect<FireworkParticle>();
+    tvFireworkEffect->Generate(nrParticles, true);
+
+    auto particleSSBO = tvFireworkEffect->GetParticleBuffer();
+    FireworkParticle* data = const_cast<FireworkParticle*>(particleSSBO->GetBuffer());
+
+    for (unsigned int i = 0; i < nrParticles; i++)
+    {
+        glm::vec4 pos(0);
+
+        pos.x = (rand() % 100 - 50) / 500.0f;
+        pos.y = -0.8f + (rand() % 20) / 100.0f;
+        pos.z = 0.0f;
+
+        glm::vec4 speed(0);
+
+        speed.x = (rand() % 200 - 100) / 100.0f * 0.8f;
+        speed.y = (rand() % 100) / 100.0f * 1.5f + 1.0f;
+        speed.z = 0.0f;
+
+        float lifetime = 1.0f + (rand() % 100) / 100.0f * 1.5f;
+
+        data[i].SetInitial(pos, speed, 0, lifetime);
+    }
+
+    particleSSBO->SetBufferData(data);
+
+    // Generator position is at origin (center of 2D screen-space)
+    firework_generator_position = glm::vec3(0, 0, 0);
+}
+
 void Tema1::InitCubemap(int scale, glm::vec3 position) {
     cubemap.position = position * (float)scale;
     cubemap.size = 3.0f * scale;
@@ -290,6 +324,22 @@ void Tema1::Init()
         TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "black.jpg"); // For the screen
 
         InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
+
+        // TV Content Framebuffer and Particle Effect
+        CreateTvContentFramebuffer(tv_texture_width, tv_texture_height);
+
+        // Load shader for rendering particles to TV texture (2D screen-space)
+        std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders", "tvScreen");
+        Shader* shader = new Shader("TvFirework");
+        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.VS.glsl"), GL_VERTEX_SHADER);
+        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.FS.glsl"), GL_FRAGMENT_SHADER);
+        shader->AddShader(PATH_JOIN(shaderPath, "TvFirework.GS.glsl"), GL_GEOMETRY_SHADER);
+        shader->CreateAndLink();
+        shaders[shader->GetName()] = shader;
+
+        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "particle2.png");
+
+        InitTvFireworkParticles();
     }
 
     // Cubemap details
@@ -448,6 +498,48 @@ void Tema1::CreateFramebuffer(int width, int height) {
         std::cout << "FRAMEBUFFER NOT COMPLETE" << std::endl;
 
     // Bind the default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Tema1::CreateTvContentFramebuffer(int width, int height)
+{
+    // Generate and bind the framebuffer for TV content
+    glGenFramebuffers(1, &tv_framebuffer_object);
+    glBindFramebuffer(GL_FRAMEBUFFER, tv_framebuffer_object);
+
+    // Generate, bind and initialize the color texture
+    glGenTextures(1, &tv_color_texture);
+    glBindTexture(GL_TEXTURE_2D, tv_color_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // Bind the color texture to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tv_color_texture, 0);
+
+    // Generate depth texture (needed for proper rendering)
+    glGenTextures(1, &tv_depth_texture);
+    glBindTexture(GL_TEXTURE_2D, tv_depth_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    // Bind the depth texture to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tv_depth_texture, 0);
+
+    // Set draw buffer
+    GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, draw_buffers);
+
+    // Check framebuffer status
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "TV CONTENT FRAMEBUFFER NOT COMPLETE" << std::endl;
+
+    // Bind default framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -953,6 +1045,9 @@ void Tema1::Update(float deltaTimeSeconds)
 
             // Render objects for main view (mode 2, with TV reflection)
             RenderObjects(2, nullptr);
+
+            // Render TV firework particles on top
+            firework_time += deltaTimeSeconds;
         }
     }
 

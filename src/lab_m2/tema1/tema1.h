@@ -2,9 +2,45 @@
 
 #include "components/simple_scene.h"
 #include "components/transform.h"
+#include "core/gpu/particle_effect.h"
 
 namespace m2
 {
+    // Particle structure for firework effect
+    struct FireworkParticle
+    {
+        glm::vec4 position;
+        glm::vec4 speed;
+        glm::vec4 initialPos;
+        glm::vec4 initialSpeed;
+        float delay;
+        float initialDelay;
+        float lifetime;
+        float initialLifetime;
+
+        FireworkParticle() {}
+
+        FireworkParticle(const glm::vec4& pos, const glm::vec4& spd)
+        {
+            SetInitial(pos, spd);
+        }
+
+        void SetInitial(const glm::vec4& pos, const glm::vec4& spd,
+            float delay = 0, float lifetime = 0)
+        {
+            position = pos;
+            initialPos = pos;
+
+            this->speed = spd;
+            initialSpeed = spd;
+            
+            this->delay = delay;
+            initialDelay = delay;
+            
+            this->lifetime = lifetime;
+            initialLifetime = lifetime;
+        }
+    };
     class Tema1 : public gfxc::SimpleScene
     {
      public:
@@ -16,6 +52,7 @@ namespace m2
      private:
         void CreateFramebuffer(int width, int height);
         void CreateCubemapFramebuffer(int width, int height);
+        void CreateTvContentFramebuffer(int width, int height);
         unsigned int UploadCubeMapTexture(const std::string &pos_x, const std::string &pos_y, const std::string &pos_z, const std::string& neg_x, const std::string& neg_y, const std::string& neg_z);
         
         void InitTable(int scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
@@ -23,6 +60,9 @@ namespace m2
         void InitLamp(float scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitTV(int scale, glm::vec3 position);
         void InitCubemap(int scale, glm::vec3 position);
+        
+        void InitTvFireworkParticles();
+        void RenderTvContentToTexture(float deltaTimeSeconds);
         
         void FrameStart() override;
         void Update(float deltaTimeSeconds) override;
@@ -137,10 +177,23 @@ namespace m2
         unsigned int cubemap_color_texture;
         unsigned int cubemap_depth_texture;
 
-        // Cubemap rendering matrices (used during cubemap face rendering)
+        // Cubemap rendering matrices
         glm::mat4 cubemapView;
         glm::mat4 cubemapProjection;
         bool isRenderingCubemap = false;
+
+        // TV Firework particle effect
+        ParticleEffect<FireworkParticle>* tvFireworkEffect = nullptr;
+        glm::vec3 firework_generator_position;
+        float firework_particle_offset = 0.02f;
+        float firework_time = 0.0f;
+
+        // TV Content framebuffer (for rendering particles onto TV screen)
+        unsigned int tv_framebuffer_object = 0;
+        unsigned int tv_color_texture = 0;
+        unsigned int tv_depth_texture = 0;
+        int tv_texture_width = 512;
+        int tv_texture_height = 512;
 
     };
 }   // namespace m2
