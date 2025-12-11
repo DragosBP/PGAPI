@@ -14,7 +14,6 @@ uniform int flip_normal_in;
 
 // Input
 in int instance[2];
-in vec3 test_normal[];
 
 // Output
 out vec2 texture_coord;

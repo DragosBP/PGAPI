@@ -150,6 +150,43 @@ void Tema1::InitLamp(float scale, glm::vec3 translation) {
     lamp.head.control_points[3] = glm::vec3(0.0 * scale, 0.0, 0.0);
 }
 
+void Tema1::InitTV(int scale, glm::vec3 position) {
+    tv.position = position;
+    tv.rotationY = 0.0f;
+    tv.name = "TvBody";
+
+    // Create cube mesh
+    glm::vec3 color = glm::vec3(0.3, 0.3, 0.3);
+    glm::vec3 cube_center = glm::vec3(0, 0, 0);
+    float deltaH = (float)scale / 10.0f;
+
+    tv.position.y += deltaH;
+
+    std::vector<VertexFormat> vertices = {
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), color),
+        VertexFormat(cube_center + glm::vec3(deltaH, -deltaH,  deltaH), color),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), color),
+        VertexFormat(cube_center + glm::vec3(deltaH,  deltaH,  deltaH), color),
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), color),
+        VertexFormat(cube_center + glm::vec3(deltaH, -deltaH, -deltaH), color),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), color),
+        VertexFormat(cube_center + glm::vec3(deltaH,  deltaH, -deltaH), color),
+    };
+
+    std::vector<unsigned int> indices = {
+        0, 1, 2,        1, 3, 2,
+        2, 3, 7,        2, 7, 6,
+        1, 7, 3,        1, 5, 7,
+        6, 7, 4,        7, 5, 4,
+        0, 4, 1,        1, 4, 5,
+        2, 6, 4,        0, 2, 4,
+    };
+
+    tv.body = new Mesh(tv.name);
+    tv.body->InitFromData(vertices, indices);
+    meshes[tv.name] = tv.body;
+}
+
 void Tema1::LoadShader(const std::string& name)
 {
     std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders");
@@ -205,6 +242,28 @@ void Tema1::Init()
         TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "wood2.jpg");
 
         InitLamp(scale, glm::vec3(0.25, (tables[0].height + tables[0].leg.height) / scale, 0.85));
+    }
+
+    // TV screen detais
+    {
+        // The body
+        std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders");
+        std::string folder_name = "tvBody";
+        folder_name[0] = std::tolower(folder_name[0]);
+
+        // Create a shader program for particle system
+        {
+            Shader* shader = new Shader("tvBody");
+            shader->AddShader(PATH_JOIN(shaderPath, folder_name, "TvBody.VS.glsl"), GL_VERTEX_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, folder_name, "TvBody.FS.glsl"), GL_FRAGMENT_SHADER);
+
+            shader->CreateAndLink();
+            shaders[shader->GetName()] = shader;
+        }
+
+        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "grey.png");
+        InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
+
     }
 
 
@@ -385,8 +444,10 @@ void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &mod
     glUniform1i(glGetUniformLocation(shader->program, "depth_texture"), 1);
 
     // Draw the object instanced
-    glBindVertexArray(mesh->GetBuffers()->m_VAO);
-    glDrawElementsInstanced(mesh->GetDrawMode(), static_cast<int>(mesh->indices.size()), GL_UNSIGNED_INT, (void*)0, instances);
+    if (instances >= 0) {
+        glBindVertexArray(mesh->GetBuffers()->m_VAO);
+        glDrawElementsInstanced(mesh->GetDrawMode(), static_cast<int>(mesh->indices.size()), GL_UNSIGNED_INT, (void*)0, instances);
+    }
 }
 
 void Tema1::DrawFramebufferTextures()
@@ -625,6 +686,16 @@ void Tema1::Update(float deltaTimeSeconds)
 
             RenderMeshInstanced(mesh, shader, model, lamp.head.no_of_instances, step, TextureManager::GetTexture("white.png"));
         }
+
+        // TV Screen
+        {
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix = glm::translate(modelMatrix, tv.position);
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
+
+            // RenderMesh(tv.body, shaders["Simple"], modelMatrix);
+            RenderMeshInstanced(tv.body, shaders["tvBody"], modelMatrix, 1, step, TextureManager::GetTexture("grey.png"));
+        }
     }
 
     if (draw_framebuffer_textures) {
@@ -654,6 +725,17 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
     // You can move the control points around by using the dedicated key,
     // in combination with Ctrl, Shift, or both.
     float delta = deltaTime;
+
+    
+    // Rotate TV 
+    float tv_rotate_speed = 25.0f;
+    if (window->KeyHold(GLFW_KEY_N)) {
+        tv.rotationY -= tv_rotate_speed * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_M)) {
+        tv.rotationY += tv_rotate_speed * deltaTime;
+    }
+
     auto keyMaps = std::vector<std::pair<glm::vec3 &, uint32_t>>
     {
         { lamp.head.control_points[0], GLFW_KEY_1},
@@ -743,6 +825,7 @@ void Tema1::OnKeyPress(int key, int mods)
     if (key == GLFW_KEY_F1) {
         draw_framebuffer_textures = !draw_framebuffer_textures;
     }
+
 }
 
 

@@ -19,6 +19,7 @@ namespace m2
         void InitTable(int scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitVase(float scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitLamp(float scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
+        void InitTV(int scale, glm::vec3 position);
         
         void FrameStart() override;
         void Update(float deltaTimeSeconds) override;
@@ -76,12 +77,14 @@ namespace m2
 
         std::vector<RotationTranlation> vases;
 
+        // Lamp info
         struct Lamp {
             RotationTranlation body;
             RotationTranlation head;
         };
         Lamp lamp;
 
+        // Light info
         struct Light {
             glm::vec3 pos;
             glm::vec3 rot;
@@ -96,6 +99,15 @@ namespace m2
             glm::mat4 space_projection;
         };
         Light light;
+
+        // TV Screen info
+        struct TV {
+            glm::vec3 position;
+            float rotationY;
+            std::string name;
+            Mesh* body;
+        };
+        TV tv;
 
         bool draw_framebuffer_textures = false;
         unsigned int framebuffer_object;
