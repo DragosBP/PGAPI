@@ -3,6 +3,8 @@
 #include <vector>
 #include <iostream>
 
+#include "stb/stb_image.h"
+
 using namespace std;
 using namespace m2;
 
@@ -155,12 +157,81 @@ void Tema1::InitTV(int scale, glm::vec3 position) {
     tv.rotationY = 0.0f;
     tv.name = "TvBody";
 
-    // Create cube mesh
-    glm::vec3 color = glm::vec3(0.3, 0.3, 0.3);
+    // Create cube mesh with texture coordinates
     glm::vec3 cube_center = glm::vec3(0, 0, 0);
     float deltaH = (float)scale / 10.0f;
 
     tv.position.y += deltaH;
+
+    std::vector<VertexFormat> vertices = {
+        // Front face (z+)
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(0, 0, 1), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+        
+        // Back face (z-)
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(0, 0, -1), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+        
+        // Top face (y+)
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(0, 1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+        
+        // Bottom face (y-)
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(0, -1, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+        
+        // Right face (x+)
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH,  deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH, -deltaH, -deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH,  deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3( deltaH,  deltaH, -deltaH), glm::vec3(1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+        
+        // Left face (x-)
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH, -deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 0)),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH, -deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(0, 1)),
+        VertexFormat(cube_center + glm::vec3(-deltaH,  deltaH,  deltaH), glm::vec3(-1, 0, 0), glm::vec3(1, 1, 1), glm::vec2(1, 1)),
+    };
+
+    std::vector<unsigned int> indices = {
+        // Front
+        0, 1, 2,    2, 1, 3,
+        // Back
+        4, 5, 6,    6, 5, 7,
+        // Top
+        8, 9, 10,   10, 9, 11,
+        // Bottom
+        12, 13, 14, 14, 13, 15,
+        // Right
+        16, 17, 18, 18, 17, 19,
+        // Left
+        20, 21, 22, 22, 21, 23,
+    };
+
+    tv.body = new Mesh(tv.name);
+    tv.body->InitFromData(vertices, indices);
+    meshes[tv.name] = tv.body;
+}
+
+void Tema1::InitCubemap(int scale, glm::vec3 position) {
+    cubemap.position = position * (float)scale;
+    cubemap.size = 3.0f * scale;
+    
+    // Raise room so bottom is at y=0 (add half the size since cube is centered)
+    cubemap.position.y += cubemap.size / 2.0f;
+
+    // Generate cube mesh for skybox manually
+    glm::vec3 color = glm::vec3(1, 1, 1);
+    glm::vec3 cube_center = glm::vec3(0, 0, 0);
+    float deltaH = 0.5f;
 
     std::vector<VertexFormat> vertices = {
         VertexFormat(cube_center + glm::vec3(-deltaH, -deltaH,  deltaH), color),
@@ -182,9 +253,9 @@ void Tema1::InitTV(int scale, glm::vec3 position) {
         2, 6, 4,        0, 2, 4,
     };
 
-    tv.body = new Mesh(tv.name);
-    tv.body->InitFromData(vertices, indices);
-    meshes[tv.name] = tv.body;
+    cubemap.body = new Mesh("skybox");
+    cubemap.body->InitFromData(vertices, indices);
+    meshes["skybox"] = cubemap.body;
 }
 
 void Tema1::LoadShader(const std::string& name)
@@ -255,15 +326,58 @@ void Tema1::Init()
         {
             Shader* shader = new Shader("tvBody");
             shader->AddShader(PATH_JOIN(shaderPath, folder_name, "TvBody.VS.glsl"), GL_VERTEX_SHADER);
-            shader->AddShader(PATH_JOIN(shaderPath, folder_name, "TvBody.FS.glsl"), GL_FRAGMENT_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
 
             shader->CreateAndLink();
             shaders[shader->GetName()] = shader;
         }
 
-        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "grey.png");
+        TextureManager::LoadTexture(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES), "tv.jpg");
         InitTV(scale, glm::vec3(1.25f * scale, (tables[0].height + tables[0].leg.height), 0.5f * scale));
 
+    }
+
+    // Cubemap details
+    {
+        std::string shaderPath = PATH_JOIN(window->props.selfDir, SOURCE_PATH::M2, "Tema1", "shaders");
+        
+        // Shader for rendering cubemap
+        {
+            Shader* shader = new Shader("Cubemap");
+            shader->AddShader(PATH_JOIN(shaderPath, "cubemap", "Cubemap.VS.glsl"), GL_VERTEX_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
+            shader->CreateAndLink();
+            shaders[shader->GetName()] = shader;
+        }
+
+        // Shader for rendering scene into cubemap framebuffer
+        {
+            Shader* shader = new Shader("FramebufferCubemap");
+            shader->AddShader(PATH_JOIN(shaderPath, "framebufferCubemap", "FramebufferCubemap.VS.glsl"), GL_VERTEX_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, "framebufferCubemap", "FramebufferCubemap.FS.glsl"), GL_FRAGMENT_SHADER);
+            shader->AddShader(PATH_JOIN(shaderPath, "framebufferCubemap", "FramebufferCubemap.GS.glsl"), GL_GEOMETRY_SHADER);
+            shader->CreateAndLink();
+            shaders[shader->GetName()] = shader;
+        }
+
+        // Initialize cubemap
+        InitCubemap(scale, glm::vec3(0.75f, 0.0f, 0.75f));
+
+        // Load cubemap textures
+        std::string texturePath = PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES, "grey_room");
+        cubemap_texture_id = UploadCubeMapTexture(
+            PATH_JOIN(texturePath, "pos_x.jpg"),
+            PATH_JOIN(texturePath, "pos_y.jpg"),
+            PATH_JOIN(texturePath, "pos_z.jpg"),
+            PATH_JOIN(texturePath, "neg_x.jpg"),
+            PATH_JOIN(texturePath, "neg_y.jpg"),
+            PATH_JOIN(texturePath, "neg_z.jpg"));
+
+        // Create cubemap framebuffer
+        cubemap_framebuffer_object = 0;
+        cubemap_color_texture = 0;
+        cubemap_depth_texture = 0;
+        CreateCubemapFramebuffer(1024, 1024);
     }
 
 
@@ -304,29 +418,33 @@ void Tema1::Init()
         depth->CreateAndLink();
         shaders[depth->GetName()] = depth;
     }
-
+    
+    // Others
     {
-        Mesh* mesh = new Mesh("quad");
-        mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "quad.obj");
-        mesh->UseMaterials(false);
-        meshes[mesh->GetMeshID()] = mesh;
-    }
 
-    {
-        vector<VertexFormat> vertices
         {
-            VertexFormat(tables[0].control_points[0][0], glm::vec3(0, 1, 1)),
-            VertexFormat(tables[0].control_points[0][3], glm::vec3(0, 1, 0))
-        };
-
-        vector<unsigned int> indices =
+            Mesh* mesh = new Mesh("quad");
+            mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "quad.obj");
+            mesh->UseMaterials(false);
+            meshes[mesh->GetMeshID()] = mesh;
+        }
+        
         {
-            0, 1
-        };
-
-        meshes["surface"] = new Mesh("generated initial surface points");
-        meshes["surface"]->InitFromData(vertices, indices);
-        meshes["surface"]->SetDrawMode(GL_LINES);
+            vector<VertexFormat> vertices
+            {
+                VertexFormat(tables[0].control_points[0][0], glm::vec3(0, 1, 1)),
+                VertexFormat(tables[0].control_points[0][3], glm::vec3(0, 1, 0))
+            };
+            
+            vector<unsigned int> indices =
+            {
+                0, 1
+            };
+            
+            meshes["surface"] = new Mesh("generated initial surface points");
+            meshes["surface"]->InitFromData(vertices, indices);
+            meshes["surface"]->SetDrawMode(GL_LINES);
+        }
     }
 }
 
@@ -368,6 +486,115 @@ void Tema1::CreateFramebuffer(int width, int height) {
         std::cout << "FRAMEBUFFER NOT COMPLETE" << std::endl;
 
     // Bind the default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+unsigned int Tema1::UploadCubeMapTexture(const std::string &pos_x, const std::string &pos_y, const std::string &pos_z, const std::string& neg_x, const std::string& neg_y, const std::string& neg_z)
+{
+    int width, height, chn;
+
+    unsigned char* data_pos_x = stbi_load(pos_x.c_str(), &width, &height, &chn, 0);
+    unsigned char* data_pos_y = stbi_load(pos_y.c_str(), &width, &height, &chn, 0);
+    unsigned char* data_pos_z = stbi_load(pos_z.c_str(), &width, &height, &chn, 0);
+    unsigned char* data_neg_x = stbi_load(neg_x.c_str(), &width, &height, &chn, 0);
+    unsigned char* data_neg_y = stbi_load(neg_y.c_str(), &width, &height, &chn, 0);
+    unsigned char* data_neg_z = stbi_load(neg_z.c_str(), &width, &height, &chn, 0);
+
+    unsigned int textureID = 0;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    if (GLEW_EXT_texture_filter_anisotropic) {
+        float maxAnisotropy;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_pos_x);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_pos_y);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_pos_z);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_neg_x);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_neg_y);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data_neg_z);
+
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+    // Free memory
+    SAFE_FREE(data_pos_x);
+    SAFE_FREE(data_pos_y);
+    SAFE_FREE(data_pos_z);
+    SAFE_FREE(data_neg_x);
+    SAFE_FREE(data_neg_y);
+    SAFE_FREE(data_neg_z);
+
+    return textureID;
+}
+
+void Tema1::CreateCubemapFramebuffer(int width, int height)
+{
+    glGenFramebuffers(1, &cubemap_framebuffer_object);
+    glBindFramebuffer(GL_FRAMEBUFFER, cubemap_framebuffer_object);
+
+    glGenTextures(1, &cubemap_color_texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
+
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    if (cubemap_color_texture) {
+        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+        if (GLEW_EXT_texture_filter_anisotropic) {
+            float maxAnisotropy;
+
+            glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
+        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, cubemap_color_texture, 0);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    
+        std::vector<GLenum> draw_textures;
+        draw_textures.push_back(GL_COLOR_ATTACHMENT0);
+        glDrawBuffers(draw_textures.size(), &draw_textures[0]);
+    }
+
+    glGenTextures(1, &cubemap_depth_texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_depth_texture);
+
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+    if (cubemap_depth_texture) {
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cubemap_depth_texture, 0);
+    }
+
+    glCheckFramebufferStatus(GL_FRAMEBUFFER);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -513,6 +740,53 @@ void Tema1::Update(float deltaTimeSeconds)
     glm::quat camRotation = camera->m_transform->GetWorldRotation();
     auto projectionInfo = camera->GetProjectionInfo();
 
+    // Render scene into cubemap
+    if (cubemap_framebuffer_object)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, cubemap_framebuffer_object);
+        glClearColor(0, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, 1024, 1024);
+
+        Shader *shader = shaders["FramebufferCubemap"];
+        shader->Use();
+
+        glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+
+        // Cubemap view matrices for 6 faces
+        glm::mat4 cubeView[6] =
+        {
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // +X
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // -X
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)), // +Y
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f), glm::vec3(0.0f, 0.0f,-1.0f)), // -Y
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // +Z
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f,-1.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // -Z
+        };
+
+        glUniformMatrix4fv(glGetUniformLocation(shader->GetProgramID(), "viewMatrices"), 6, GL_FALSE, glm::value_ptr(cubeView[0]));
+        glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Render the environment skybox into cubemap
+        {
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix = glm::translate(modelMatrix, cubemap.position);
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
+            glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
+            glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 1);
+            glUniform1i(glGetUniformLocation(shader->program, "cube_draw"), 1);
+
+            meshes["skybox"]->Render();
+        }
+
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     for (int step = 0; step < 2; step++) {
         if (step == 0) {
             // Render the scene from the light source view
@@ -629,7 +903,6 @@ void Tema1::Update(float deltaTimeSeconds)
             }
         }
 
-
         // Vases
         for (auto& vase : vases) {
             Shader *shader = shaders["Vase"];
@@ -694,7 +967,16 @@ void Tema1::Update(float deltaTimeSeconds)
             modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
 
             // RenderMesh(tv.body, shaders["Simple"], modelMatrix);
-            RenderMeshInstanced(tv.body, shaders["tvBody"], modelMatrix, 1, step, TextureManager::GetTexture("grey.png"));
+            RenderMeshInstanced(tv.body, shaders["tvBody"], modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
+        }
+
+        // Skybox
+        {
+            glm::mat4 modelMatrix = glm::mat4(1);
+            modelMatrix = glm::translate(modelMatrix, cubemap.position);
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
+
+            RenderMeshInstanced(cubemap.body, shaders["Cubemap"], modelMatrix, 1, step, TextureManager::GetTexture("grey.png"));
         }
     }
 

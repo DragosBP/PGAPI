@@ -19,7 +19,7 @@ out vec3 world_normal;
 void main()
 {
     world_position = vec3(Model * vec4(v_position,1));
-    world_normal = normalize(mat3(transpose(inverse(Model))) * v_normal);
+    world_normal = mat3(Model) * v_normal;
 
     texture_coord = v_texture_coord;
 

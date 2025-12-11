@@ -15,11 +15,14 @@ namespace m2
 
      private:
         void CreateFramebuffer(int width, int height);
+        void CreateCubemapFramebuffer(int width, int height);
+        unsigned int UploadCubeMapTexture(const std::string &pos_x, const std::string &pos_y, const std::string &pos_z, const std::string& neg_x, const std::string& neg_y, const std::string& neg_z);
         
         void InitTable(int scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitVase(float scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitLamp(float scale = 1, glm::vec3 translation = glm::vec3(0, 0, 0));
         void InitTV(int scale, glm::vec3 position);
+        void InitCubemap(int scale, glm::vec3 position);
         
         void FrameStart() override;
         void Update(float deltaTimeSeconds) override;
@@ -109,10 +112,24 @@ namespace m2
         };
         TV tv;
 
+        // Cubemap skybox info
+        struct Cubemap {
+            glm::vec3 position;
+            Mesh* body;
+            float size;
+        };
+        Cubemap cubemap;
+
         bool draw_framebuffer_textures = false;
         unsigned int framebuffer_object;
         unsigned int color_texture;
         unsigned int depth_texture;
+
+        // Cubemap info
+        unsigned int cubemap_texture_id;
+        unsigned int cubemap_framebuffer_object;
+        unsigned int cubemap_color_texture;
+        unsigned int cubemap_depth_texture;
 
     };
 }   // namespace m2
