@@ -26,7 +26,7 @@ uniform mat4 light_space_projection;
 // Output
 layout(location = 0) out vec4 out_color;
 
-const vec3 KA = vec3 (0.25);            // ambient factor
+const vec3 KA = vec3 (0.1);            // ambient factor
 const vec3 KD = vec3 (0.3);             // diffuse factor
 const vec3 KS = vec3 (0.3);             // specular factor
 const float SPECULAR_EXPONENT = 40.0;   // specular exponent

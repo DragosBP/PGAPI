@@ -9,13 +9,13 @@ layout(location = 2) in vec2 v_texture_coord;
 uniform mat4 Model;
 uniform vec3 generator_position;
 uniform float deltaTime;
-uniform float time;
 
 // Output to geometry shader
 out float vert_lifetime;
 out float vert_iLifetime;
+out vec3 vert_color;
 
-// Particle data structure (must match CPU side)
+// Particle data structure
 struct Particle
 {
     vec4 position;
@@ -26,9 +26,10 @@ struct Particle
     float iDelay;
     float lifetime;
     float iLifetime;
+    int state;
+    vec4 color;
 };
 
-// Shader Storage Buffer for particles
 layout(std430, binding = 0) buffer particles {
     Particle data[];
 };
@@ -40,51 +41,70 @@ float rand(vec2 co)
 
 void main()
 {
-    // Get particle data
     vec3 pos = data[gl_VertexID].position.xyz;
     vec3 spd = data[gl_VertexID].speed.xyz;
+
     float lifetime = data[gl_VertexID].lifetime;
     float iLifetime = data[gl_VertexID].iLifetime;
+    
+    vec4 color = data[gl_VertexID].color;
+
+    int state = data[gl_VertexID].state;
 
     float dt = deltaTime;
 
-    // Update position with gravity (3D movement)
-    pos.x = pos.x + spd.x * dt;
-    pos.y = pos.y + spd.y * dt - 0.5 * dt * dt * 2.0; // Gravity pulls down
-    pos.z = pos.z + spd.z * dt;  // Z movement (depth)
-    
-    // Update speed (apply gravity to Y, slight drag on X and Z)
-    spd.x = spd.x * 0.995;  // Air resistance
-    spd.y = spd.y - 2.0 * dt;  // Gravity
-    spd.z = spd.z * 0.995;  // Air resistance
-    
-    // Update lifetime
+    vec3 gravity = vec3(0, -0.9, 0); 
+    pos = pos + spd * dt + gravity * dt * dt / 2.0f;
+    spd = spd + gravity * dt;
+
+    if (state == 0 && spd.y <= 0)
+    {
+        state = 1;
+
+        float seed = float(gl_VertexID);
+        
+        float rx = rand(vec2(seed, 13.0)) * 2.0 - 1.0; 
+        float ry = rand(vec2(seed, 17.0)) * 2.0 - 1.0;
+        float rz = rand(vec2(seed, 23.0)) * 2.0 - 1.0;
+        
+        vec3 direction = normalize(vec3(rx, ry, rz));
+
+        float magnitude = rand(vec2(seed, 29.0)) + 0.5;
+
+        spd = direction * magnitude;
+    }
+
     lifetime -= dt;
 
-    // Reset particle when lifetime expires or goes off screen
-    if (lifetime <= 0 || pos.y < -1.2)
+    if (lifetime <= 0) 
     {
         pos = data[gl_VertexID].iposition.xyz;
         spd = data[gl_VertexID].ispeed.xyz;
+
         lifetime = data[gl_VertexID].iLifetime;
         
-        // Add randomness to respawn position and speed
-        float randVal = rand(pos.xy + vec2(time));
-        pos.x += (randVal - 0.5) * 0.2;
-        spd.x = data[gl_VertexID].ispeed.x * (0.8 + rand(pos.yx + vec2(time)) * 0.4);
-        spd.y = data[gl_VertexID].ispeed.y * (0.8 + rand(pos.xy * 2.0 + vec2(time)) * 0.4);
-        spd.z = data[gl_VertexID].ispeed.z * (0.8 + rand(pos.xz + vec2(time)) * 0.4);
+        float r = rand(vec2(color.r + 1.0, color.g + 2.0));
+        float g = rand(vec2(color.g + 3.0, color.b + 4.0));
+        float b = rand(vec2(color.b + 5.0, color.r + 6.0));
+        color = vec4(r, g, b, 1.0);
+        
+        state = 0;
     }
 
-    // Write back updated values
     data[gl_VertexID].position.xyz = pos;
     data[gl_VertexID].speed.xyz = spd;
     data[gl_VertexID].lifetime = lifetime;
+    data[gl_VertexID].color = color;
+    data[gl_VertexID].state = state;
 
-    // Pass lifetime to geometry shader
     vert_lifetime = lifetime;
     vert_iLifetime = iLifetime;
+    vert_color = color.rgb;
 
-    // Output 3D position - Z will be used for depth/size effect in GS
-    gl_Position = vec4(pos + generator_position, 1.0);
+    vec3 finalPos = pos + generator_position;
+
+    // So the particles do not come out of the left side of the screen
+    vec3 roatedPos = vec3(finalPos.y, -finalPos.x, finalPos.z);
+
+    gl_Position = Model * vec4(roatedPos, 1.0);
 }

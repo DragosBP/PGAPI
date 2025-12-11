@@ -12,11 +12,14 @@ uniform float offset;
 // Input from vertex shader
 in float vert_lifetime[1];
 in float vert_iLifetime[1];
+in vec3 vert_color[1];
 
 // Output to fragment shader
 layout(location = 0) out vec2 texture_coord;
 layout(location = 1) out float geom_lifetime;
 layout(location = 2) out float geom_iLifetime;
+layout(location = 3) out vec3 geom_color;
+
 
 void main()
 {
@@ -36,6 +39,8 @@ void main()
     float screenY = pos.y * depthScale;
     float depth = pos.z * 0.1;  // Normalize Z for depth buffer
     
+    geom_color = vert_color[0];
+
     // Bottom-left
     texture_coord = vec2(0, 0);
     gl_Position = vec4(screenX - size, screenY - size, depth, 1);

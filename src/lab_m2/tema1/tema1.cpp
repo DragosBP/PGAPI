@@ -189,27 +189,28 @@ void Tema1::InitTvFireworkParticles() {
 
     for (unsigned int i = 0; i < nrParticles; i++)
     {
-        glm::vec4 pos(0);
+        firework_particle_offset = 0.006;
 
-        pos.x = (rand() % 100 - 50) / 500.0f;
-        pos.y = -0.8f + (rand() % 20) / 100.0f;
+        glm::vec4 pos(0);
+        pos.x = 0.0f;
+        pos.y = 0.0f;
         pos.z = 0.0f;
 
         glm::vec4 speed(0);
-
-        speed.x = (rand() % 200 - 100) / 100.0f * 0.8f;
-        speed.y = (rand() % 100) / 100.0f * 1.5f + 1.0f;
+        speed.x = 0.0f;
+        speed.y = 1.4f;
         speed.z = 0.0f;
 
-        float lifetime = 1.0f + (rand() % 100) / 100.0f * 1.5f;
+        float lifetime = 5;
 
         data[i].SetInitial(pos, speed, 0, lifetime);
+        data[i].state = 0; 
+
     }
 
     particleSSBO->SetBufferData(data);
 
-    // Generator position is at origin (center of 2D screen-space)
-    firework_generator_position = glm::vec3(0, 0, 0);
+    firework_generator_position = glm::vec3(0.15, -0.8, 0);
 }
 
 void Tema1::InitCubemap(int scale, glm::vec3 position) {
@@ -362,14 +363,14 @@ void Tema1::Init()
         InitCubemap(scale, glm::vec3(0.75f, 0.0f, 0.75f));
 
         // Load cubemap textures
-        std::string texturePath = PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES, "cube");
+        std::string texturePath = PATH_JOIN(window->props.selfDir, RESOURCE_PATH::TEXTURES, "grey_room");
         cubemap_texture_id = UploadCubeMapTexture(
-            PATH_JOIN(texturePath, "pos_x.png"),
-            PATH_JOIN(texturePath, "pos_y.png"),
-            PATH_JOIN(texturePath, "pos_z.png"),
-            PATH_JOIN(texturePath, "neg_x.png"),
-            PATH_JOIN(texturePath, "neg_y.png"),
-            PATH_JOIN(texturePath, "neg_z.png"));
+            PATH_JOIN(texturePath, "pos_x.jpg"),
+            PATH_JOIN(texturePath, "pos_y.jpg"),
+            PATH_JOIN(texturePath, "pos_z.jpg"),
+            PATH_JOIN(texturePath, "neg_x.jpg"),
+            PATH_JOIN(texturePath, "neg_y.jpg"),
+            PATH_JOIN(texturePath, "neg_z.jpg"));
 
         // Create cubemap framebuffer
         cubemap_framebuffer_object = 0;
@@ -1094,7 +1095,7 @@ void Tema1::Update(float deltaTimeSeconds)
             // Bind to the firework FBO
             glBindFramebuffer(GL_FRAMEBUFFER, tv_framebuffer_object);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glViewport(0, 0, 400, 400);
+            glViewport(0, 0, 600, 600);
 
             // Draw the object
             glEnable(GL_BLEND);
@@ -1115,8 +1116,6 @@ void Tema1::Update(float deltaTimeSeconds)
 
             glEnable(GL_DEPTH_TEST);
             glDisable(GL_BLEND);
-
-            firework_time += deltaTimeSeconds;
         }
     }
 
@@ -1166,49 +1165,49 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
         tv.rotationY += tv_rotate_speed * deltaTime;
     }
 
-    auto keyMaps = std::vector<std::pair<glm::vec3 &, uint32_t>>
-    {
-        { tv.screen.control_points[0], GLFW_KEY_1 },
-        { tv.screen.control_points[1], GLFW_KEY_2 },
-        { tv.screen.control_points[2], GLFW_KEY_3 },
-        { tv.screen.control_points[3], GLFW_KEY_4 }
-    };
+    // auto keyMaps = std::vector<std::pair<glm::vec3 &, uint32_t>>
+    // {
+    //     { tv.screen.control_points[0], GLFW_KEY_1 },
+    //     { tv.screen.control_points[1], GLFW_KEY_2 },
+    //     { tv.screen.control_points[2], GLFW_KEY_3 },
+    //     { tv.screen.control_points[3], GLFW_KEY_4 }
+    // };
 
-    for (const auto &k : keyMaps)
-    {
-        if (window->KeyHold(k.second))
-        {
-            if (mods & GLFW_MOD_SHIFT && mods & GLFW_MOD_CONTROL)
-            {
-                k.first.y -= delta / 10;
-            }
-            else if (mods & GLFW_MOD_SHIFT && mods & GLFW_MOD_ALT) 
-            {
-                k.first.z -= delta / 10;
-            }
-            else if (mods & GLFW_MOD_ALT)
-            {
-                k.first.z += delta / 10;
-            }
-            else if (mods & GLFW_MOD_CONTROL)
-            {
-                k.first.y += delta / 10;
-            }
-            else if (mods & GLFW_MOD_SHIFT)
-            {
-                k.first.x -= delta / 10;
-            }
-            else
-            {
-                k.first.x += delta / 10;
-            }
+    // for (const auto &k : keyMaps)
+    // {
+    //     if (window->KeyHold(k.second))
+    //     {
+    //         if (mods & GLFW_MOD_SHIFT && mods & GLFW_MOD_CONTROL)
+    //         {
+    //             k.first.y -= delta / 10;
+    //         }
+    //         else if (mods & GLFW_MOD_SHIFT && mods & GLFW_MOD_ALT) 
+    //         {
+    //             k.first.z -= delta / 10;
+    //         }
+    //         else if (mods & GLFW_MOD_ALT)
+    //         {
+    //             k.first.z += delta / 10;
+    //         }
+    //         else if (mods & GLFW_MOD_CONTROL)
+    //         {
+    //             k.first.y += delta / 10;
+    //         }
+    //         else if (mods & GLFW_MOD_SHIFT)
+    //         {
+    //             k.first.x -= delta / 10;
+    //         }
+    //         else
+    //         {
+    //             k.first.x += delta / 10;
+    //         }
 
-            std::cout << "Control Points: " << glm::vec2(tv.screen.control_points[0]);
-            std::cout << glm::vec2(tv.screen.control_points[1]);
-            std::cout << glm::vec2(tv.screen.control_points[2]);
-            std::cout << glm::vec2(tv.screen.control_points[3]) << "\n";
-        }
-    }
+    //         std::cout << "Control Points: " << glm::vec2(tv.screen.control_points[0]);
+    //         std::cout << glm::vec2(tv.screen.control_points[1]);
+    //         std::cout << glm::vec2(tv.screen.control_points[2]);
+    //         std::cout << glm::vec2(tv.screen.control_points[3]) << "\n";
+    //     }
+    // }
 
     float moveSpeed = scale * 0.20f;
     float rotateSpeed = 1.5f;
@@ -1246,12 +1245,6 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
 
 void Tema1::OnKeyPress(int key, int mods)
 {
-    if (key == GLFW_KEY_P) {
-        lamp.head.no_of_instances++;
-    }
-    if (key == GLFW_KEY_O && lamp.head.no_of_instances > 1) {
-        lamp.head.no_of_instances--;
-    }
     if (key == GLFW_KEY_F1) {
         draw_framebuffer_textures = !draw_framebuffer_textures;
     }

@@ -17,6 +17,10 @@ namespace m2
         float initialDelay;
         float lifetime;
         float initialLifetime;
+        int state;
+        glm::vec4 color;
+
+        int padding[3];
 
         FireworkParticle() {}
 
@@ -39,6 +43,8 @@ namespace m2
             
             this->lifetime = lifetime;
             initialLifetime = lifetime;
+
+            color = glm::vec4(1.0, 0.5, 0.0, 1.0);
         }
     };
     class Tema1 : public gfxc::SimpleScene
@@ -186,8 +192,7 @@ namespace m2
         // TV Firework particle effect
         ParticleEffect<FireworkParticle>* tvFireworkEffect = nullptr;
         glm::vec3 firework_generator_position;
-        float firework_particle_offset = 0.02f;
-        float firework_time = 0.0f;
+        float firework_particle_offset;
 
         // TV Content framebuffer
         bool draw_tv_framebuffer_textures = false;
