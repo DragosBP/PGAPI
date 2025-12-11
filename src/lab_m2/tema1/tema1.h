@@ -28,7 +28,9 @@ namespace m2
         void Update(float deltaTimeSeconds) override;
         void FrameEnd() override;
 
-        void RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, int instances, int light_view = 0, Texture2D* texture = NULL);
+        void RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, int instances, int light_view = 0, Texture2D* texture = NULL, int reflect_view = 0);
+        
+        void RenderObjects(int renderMode, Shader* cubemapShader = nullptr);
 
         void OnInputUpdate(float deltaTime, int mods) override;
         void OnKeyPress(int key, int mods) override;
@@ -126,11 +128,19 @@ namespace m2
         unsigned int color_texture;
         unsigned int depth_texture;
 
+        // Debug mode for reflection shader
+        int debug_mode = 0;
+
         // Cubemap info
         unsigned int cubemap_texture_id;
         unsigned int cubemap_framebuffer_object;
         unsigned int cubemap_color_texture;
         unsigned int cubemap_depth_texture;
+
+        // Cubemap rendering matrices (used during cubemap face rendering)
+        glm::mat4 cubemapView;
+        glm::mat4 cubemapProjection;
+        bool isRenderingCubemap = false;
 
     };
 }   // namespace m2

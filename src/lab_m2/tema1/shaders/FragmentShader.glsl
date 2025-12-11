@@ -11,6 +11,9 @@ uniform sampler2D depth_texture;
 
 uniform int light_view;
 
+uniform int reflect_view;
+uniform samplerCube texture_cubemap;
+
 uniform vec3 eye_position;
 uniform vec3 light_position;
 uniform vec3 light_direction;
@@ -104,6 +107,17 @@ vec3 SpotLight()
     return KA;
 }
 
+vec3 myReflect()
+{
+    
+    vec3 view_direction = normalize(world_position - eye_position);
+    vec3 reflect_direction = reflect(view_direction, normalize(world_normal));
+    return texture(texture_cubemap, reflect_direction).rgb;
+}
+
+// Debug mode: 0 = normal, 1 = normals, 2 = world_pos, 3 = view_dir, 4 = reflect_dir, 5 = cubemap, 6 = check cubemap
+uniform int debug_mode;
+
 void main()
 {
     vec4 texture_color = texture(texture_1, texture_coord);
@@ -113,9 +127,43 @@ void main()
     }
     
     vec3 color = vec3(texture_color);
+    int alpha = 1;
+
     if (light_view == 1) {
         color = color * SpotLight();
+
+        if (reflect_view == 1) {
+            vec3 N = normalize(world_normal);
+            vec3 view_direction = normalize(world_position - eye_position);
+            vec3 reflect_direction = reflect(view_direction, N);
+
+            if (debug_mode == 1) {
+                // Show normals (should see color gradients on the TV screen)
+                color = N * 0.5 + 0.5;
+            } else if (debug_mode == 2) {
+                // Show world position
+                color = fract(world_position);
+            } else if (debug_mode == 3) {
+                // Show view direction
+                color = view_direction * 0.5 + 0.5;
+            } else if (debug_mode == 4) {
+                // Show reflect direction
+                color = reflect_direction * 0.5 + 0.5;
+            } else {
+                vec3 cubemap_color = texture(texture_cubemap, reflect_direction).rgb;
+                
+                if (debug_mode == 5) {
+                    color = cubemap_color;
+                } else if (debug_mode == 6) {
+                    // White if cubemap returns color, black if zero
+                    color = vec3(length(cubemap_color) > 0.001 ? 1.0 : 0.0);
+                } else {
+                    color = cubemap_color;
+                }
+            }
+            alpha = 0;
+        }
     }
 
-    out_color = vec4(color, 1);
+    out_color = vec4(color, alpha);
 }

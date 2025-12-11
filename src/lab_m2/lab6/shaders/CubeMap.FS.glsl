@@ -45,3 +45,8 @@ void main()
         out_color = vec4(myRefract(1.33), 0);
     }
 }
+
+else if (debug_mode == 5) {
+                // Show cubemap sample directly
+                color = cubemap_color;
+            } 

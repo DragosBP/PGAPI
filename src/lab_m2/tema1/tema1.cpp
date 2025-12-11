@@ -374,6 +374,13 @@ void Tema1::Init()
             mesh->UseMaterials(false);
             meshes[mesh->GetMeshID()] = mesh;
         }
+
+        {
+            Mesh* mesh = new Mesh("box");
+            mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "box.obj");
+            mesh->UseMaterials(false);
+            meshes[mesh->GetMeshID()] = mesh;
+        }
         
         {
             vector<VertexFormat> vertices
@@ -556,7 +563,7 @@ void Tema1::FrameStart()
 }
 
 
-void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, int instances, int light_view, Texture2D* texture)
+void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, int instances, int light_view, Texture2D* texture, int reflect_view)
 {
     if (!mesh || !shader || !shader->GetProgramID())
         return;
@@ -580,13 +587,13 @@ void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &mod
     GLint loc_model_matrix = glGetUniformLocation(shader->program, "Model");
     glUniformMatrix4fv(loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
-    // Bind view matrix
-    glm::mat4 viewMatrix = GetSceneCamera()->GetViewMatrix();
+    // Bind view matrix - use cubemap matrices if rendering to cubemap
+    glm::mat4 viewMatrix = isRenderingCubemap ? cubemapView : GetSceneCamera()->GetViewMatrix();
     int loc_view_matrix = glGetUniformLocation(shader->program, "View");
     glUniformMatrix4fv(loc_view_matrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
 
-    // Bind projection matrix
-    glm::mat4 projectionMatrix = GetSceneCamera()->GetProjectionMatrix();
+    // Bind projection matrix - use cubemap matrices if rendering to cubemap
+    glm::mat4 projectionMatrix = isRenderingCubemap ? cubemapProjection : GetSceneCamera()->GetProjectionMatrix();
     int loc_projection_matrix = glGetUniformLocation(shader->program, "Projection");
     glUniformMatrix4fv(loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
@@ -611,12 +618,21 @@ void Tema1::RenderMeshInstanced(Mesh *mesh, Shader *shader, const glm::mat4 &mod
     }
 
     glUniform1i(glGetUniformLocation(shader->program, "light_view"), light_view);
+    glUniform1i(glGetUniformLocation(shader->program, "reflect_view"), reflect_view);
+    glUniform1i(glGetUniformLocation(shader->program, "debug_mode"), debug_mode);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, depth_texture);
     glUniform1i(glGetUniformLocation(shader->program, "depth_texture"), 1);
 
-    // Draw the object instanced
+    glActiveTexture(GL_TEXTURE2);
+    if (reflect_view == 1 && cubemap_color_texture) {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
+    } else {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
+    }
+    glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 2);
+
     if (instances >= 0) {
         glBindVertexArray(mesh->GetBuffers()->m_VAO);
         glDrawElementsInstanced(mesh->GetDrawMode(), static_cast<int>(mesh->indices.size()), GL_UNSIGNED_INT, (void*)0, instances);
@@ -674,11 +690,173 @@ void Tema1::RenderTextureScreen(Shader* shader, unsigned int textureID)
     glDrawElements(meshes["quad"]->GetDrawMode(), static_cast<int>(meshes["quad"]->indices.size()), GL_UNSIGNED_INT, 0);
 }
 
+void Tema1::RenderObjects(int renderMode, Shader* cubemapShader)
+{
+    // renderMode: 0 = cubemap pass (render into cubemap, no TV screen reflection)
+    //             1 = shadow pass (step 0)
+    //             2 = main render pass (step 1, with TV reflection)
+    
+    int step = (renderMode == 1) ? 0 : 1;
+    bool renderTvScreen = (renderMode == 2);
+
+    // Tables
+    for (auto& table : tables) {
+        Shader* shader = shaders["Table"];
+        shader->Use();
+
+        for (int i = 0; i < 6; i++) {
+            glUniform3f(glGetUniformLocation(shader->program, "control_p0"), table.control_points[i][0].x, table.control_points[i][0].y, table.control_points[i][0].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p1"), table.control_points[i][1].x, table.control_points[i][1].y, table.control_points[i][1].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p2"), table.control_points[i][2].x, table.control_points[i][2].y, table.control_points[i][2].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p3"), table.control_points[i][3].x, table.control_points[i][3].y, table.control_points[i][3].z);
+            glUniform1f(glGetUniformLocation(shader->program, "max_translate"), table.max_translate[i]);
+            glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), table.no_of_instances);
+
+            int shouldFlip = 0;
+            if (i < 4) {
+                glUniform1i(glGetUniformLocation(shader->program, "rotate"), i % 2);
+                if (i == 2 || i == 3) shouldFlip = 1;
+            } else {
+                glUniform1i(glGetUniformLocation(shader->program, "rotate"), 0);
+                if (i == 4) shouldFlip = 1;
+            }
+
+            glUniform1i(glGetUniformLocation(shader->program, "flip_normal_in"), shouldFlip);
+            RenderMeshInstanced(meshes["surface"], shader, glm::mat4(1), table.no_of_instances, step, TextureManager::GetTexture("wood.jpg"));
+        }
+
+        // Legs
+        shader = shaders["TableLeg"];
+        shader->Use();
+
+        for (int i = 0; i < 4; i++) {
+            float translateX = (i == 2 || i == 3) ? 4 * table.width / 5 : table.width / 5;
+            translateX += table.translation.x;
+            float translateZ = (i == 1 || i == 2) ? 4 * table.length / 5 : table.length / 5;
+            translateZ += table.translation.z;
+
+            glUniform3f(glGetUniformLocation(shader->program, "control_p0"), table.leg.control_points[0].x, table.leg.control_points[0].y, table.leg.control_points[0].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p1"), table.leg.control_points[1].x, table.leg.control_points[1].y, table.leg.control_points[1].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p2"), table.leg.control_points[2].x, table.leg.control_points[2].y, table.leg.control_points[2].z);
+            glUniform3f(glGetUniformLocation(shader->program, "control_p3"), table.leg.control_points[3].x, table.leg.control_points[3].y, table.leg.control_points[3].z);
+            glUniform3f(glGetUniformLocation(shader->program, "translate"), translateX, 0.0, translateZ);
+            glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), table.leg.max_rotate);
+            glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), table.leg.no_of_instances);
+
+            RenderMeshInstanced(meshes["surface"], shader, glm::mat4(1), table.leg.no_of_instances, step, TextureManager::GetTexture("wood.jpg"));
+        }
+    }
+
+    // Vases
+    for (auto& vase : vases) {
+        Shader* shader = shaders["Vase"];
+        shader->Use();
+
+        glUniform3f(glGetUniformLocation(shader->program, "control_p0"), vase.control_points[0].x, vase.control_points[0].y, vase.control_points[0].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p1"), vase.control_points[1].x, vase.control_points[1].y, vase.control_points[1].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p2"), vase.control_points[2].x, vase.control_points[2].y, vase.control_points[2].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p3"), vase.control_points[3].x, vase.control_points[3].y, vase.control_points[3].z);
+        glUniform3f(glGetUniformLocation(shader->program, "translate"), vase.translation.x, vase.translation.y, vase.translation.z);
+        glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), vase.max_rotate);
+        glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), vase.no_of_instances);
+
+        RenderMeshInstanced(meshes["surface"], shader, glm::mat4(1.0f), vase.no_of_instances, step, TextureManager::GetTexture("vase.jpg"));
+    }
+
+    // Lamp
+    {
+        Shader* shader = shaders["Lamp"];
+        shader->Use();
+
+        // Body
+        glUniform3f(glGetUniformLocation(shader->program, "control_p0"), lamp.body.control_points[0].x, lamp.body.control_points[0].y, lamp.body.control_points[0].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p1"), lamp.body.control_points[1].x, lamp.body.control_points[1].y, lamp.body.control_points[1].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p2"), lamp.body.control_points[2].x, lamp.body.control_points[2].y, lamp.body.control_points[2].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p3"), lamp.body.control_points[3].x, lamp.body.control_points[3].y, lamp.body.control_points[3].z);
+        glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), lamp.body.max_rotate);
+        glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), lamp.body.no_of_instances);
+
+        glm::mat4 model = glm::mat4(1);
+        model = glm::translate(model, lamp.body.translation);
+        RenderMeshInstanced(meshes["surface"], shader, model, lamp.body.no_of_instances, step, TextureManager::GetTexture("wood2.jpg"));
+
+        // Head
+        glUniform3f(glGetUniformLocation(shader->program, "control_p0"), lamp.head.control_points[0].x, lamp.head.control_points[0].y, lamp.head.control_points[0].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p1"), lamp.head.control_points[1].x, lamp.head.control_points[1].y, lamp.head.control_points[1].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p2"), lamp.head.control_points[2].x, lamp.head.control_points[2].y, lamp.head.control_points[2].z);
+        glUniform3f(glGetUniformLocation(shader->program, "control_p3"), lamp.head.control_points[3].x, lamp.head.control_points[3].y, lamp.head.control_points[3].z);
+        glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), lamp.head.max_rotate);
+        glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), lamp.head.no_of_instances);
+
+        model = glm::mat4(1);
+        model = glm::translate(model, lamp.head.translation);
+        model = glm::rotate(model, glm::radians(75.0f), glm::vec3(1, 0, 1));
+        RenderMeshInstanced(meshes["surface"], shader, model, lamp.head.no_of_instances, step, TextureManager::GetTexture("white.png"));
+    }
+
+    // TV Body (don't render in cubemap pass to avoid self-reflection)
+    if (renderMode != 0) 
+    {
+        Shader* body_shader = shaders["TvBody"];
+        body_shader->Use();
+
+        glUniform1f(glGetUniformLocation(body_shader->program, "tv_length"), tv.length);
+
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix = glm::translate(modelMatrix, tv.position);
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
+
+        RenderMeshInstanced(meshes["surface"], body_shader, modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
+    }
+
+    // TV Screen
+    if (renderTvScreen) {
+        Shader* screen_shader = shaders["TvScreen"];
+        screen_shader->Use();
+
+        glUniform3f(glGetUniformLocation(screen_shader->program, "control_p0"), tv.screen.control_points[0].x, tv.screen.control_points[0].y, tv.screen.control_points[0].z);
+        glUniform3f(glGetUniformLocation(screen_shader->program, "control_p1"), tv.screen.control_points[1].x, tv.screen.control_points[1].y, tv.screen.control_points[1].z);
+        glUniform3f(glGetUniformLocation(screen_shader->program, "control_p2"), tv.screen.control_points[2].x, tv.screen.control_points[2].y, tv.screen.control_points[2].z);
+        glUniform3f(glGetUniformLocation(screen_shader->program, "control_p3"), tv.screen.control_points[3].x, tv.screen.control_points[3].y, tv.screen.control_points[3].z);
+        glUniform1f(glGetUniformLocation(screen_shader->program, "max_rotate"), tv.screen.max_rotate);
+        glUniform1i(glGetUniformLocation(screen_shader->program, "no_of_instances"), tv.screen.no_of_instances);
+
+        if (cubemap_color_texture) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
+            glUniform1i(glGetUniformLocation(screen_shader->program, "texture_cubemap"), 2);
+        }
+
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix = glm::translate(modelMatrix, tv.screen.translation);
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -tv.length / 2));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, tv.length / 2));
+
+        RenderMeshInstanced(meshes["surface"], screen_shader, modelMatrix, tv.screen.no_of_instances, step, TextureManager::GetTexture("black.jpg"), 1);
+    }
+
+    // Skybox
+    {
+        Shader* shader = shaders["Cubemap"];
+        shader->Use();
+
+        glm::mat4 modelMatrix = glm::mat4(1);
+        modelMatrix = glm::translate(modelMatrix, cubemap.position);
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
+        glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 0);
+
+        RenderMeshInstanced(cubemap.body, shader, modelMatrix, 1, step, nullptr);
+    }
+}
+
 void Tema1::Update(float deltaTimeSeconds)
 {
     ClearScreen();
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 
     auto camera = GetSceneCamera();
 
@@ -686,284 +864,90 @@ void Tema1::Update(float deltaTimeSeconds)
     glm::quat camRotation = camera->m_transform->GetWorldRotation();
     auto projectionInfo = camera->GetProjectionInfo();
 
-    // Render scene into cubemap
+    // Render scene into cubemap (6 passes, one for each face)
     if (cubemap_framebuffer_object)
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, cubemap_framebuffer_object);
-        glClearColor(0, 0, 0, 1);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glViewport(0, 0, 1024, 1024);
-
-        Shader *shader = shaders["FramebufferCubemap"];
-        shader->Use();
-
         glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+        glm::vec3 cubemapCenter = tv.screen.translation;
 
-        // Cubemap view matrices for 6 faces
-        glm::mat4 cubeView[6] =
-        {
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // +X
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // -X
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)), // +Y
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,-1.0f, 0.0f), glm::vec3(0.0f, 0.0f,-1.0f)), // -Y
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // +Z
-            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f,-1.0f), glm::vec3(0.0f,-1.0f, 0.0f)), // -Z
+        // View matrices for each cubemap face
+        glm::mat4 views[6] = {
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),   // +X
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),  // -X
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),    // +Y
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)),  // -Y
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),   // +Z
+            glm::lookAt(cubemapCenter, cubemapCenter + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))   // -Z
         };
 
-        glUniformMatrix4fv(glGetUniformLocation(shader->GetProgramID(), "viewMatrices"), 6, GL_FALSE, glm::value_ptr(cubeView[0]));
-        glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projection));
+        // Render each face of the cubemap
+        for (int face = 0; face < 6; face++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, cubemap_framebuffer_object);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, cubemap_color_texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, cubemap_depth_texture, 0);
 
-        // Render the environment skybox into cubemap
-        {
-            glm::mat4 modelMatrix = glm::mat4(1);
-            modelMatrix = glm::translate(modelMatrix, cubemap.position);
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
-            glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+            glClearColor(0, 0, 0, 1);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glViewport(0, 0, 1024, 1024);
 
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
-            glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 1);
-            glUniform1i(glGetUniformLocation(shader->program, "cube_draw"), 1);
+            // Store the custom view/projection for this cubemap face
+            cubemapView = views[face];
+            cubemapProjection = projection;
+            isRenderingCubemap = true;
 
-            meshes["skybox"]->Render();
+            // Render scene objects (mode 0 = cubemap pass, no TV screen reflection)
+            RenderObjects(0, nullptr);
         }
 
+        isRenderingCubemap = false;
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_color_texture);
         glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    // Shadow pass (step 0) and main render pass (step 1)
     for (int step = 0; step < 2; step++) {
         if (step == 0) {
             // Render the scene from the light source view
             camera->SetPosition(light.pos);
             camera->SetRotation(glm::quatLookAt(light.rot, glm::vec3(0, 1, 0)));
+            camera->SetPerspective(90, 1, light.near_plane, light.far_plane);
 
-            // The spot light source has an angle opening of 90
-            // degrees, so a perspective projection is used with
-            // a viewing angle of 90 degrees both vertically and
-            // horizontally. For this reason, an aspect ratio of
-            // 1 is used.
-            camera->SetPerspective(90, 1,
-                light.near_plane, light.far_plane);
-
-            // Save the view and projection matrix
             light.space_view = camera->GetViewMatrix();
             light.space_projection = camera->GetProjectionMatrix();
 
-            // Bind the framebuffer created before
-            // and clear the color and depth textures
             glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_object);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-            // Use glViewport to specify the render
-            // area whose size (width, height) is the resolution of
-            // the textures in the framebuffer
             glViewport(0, 0, light.width, light.height);
-        }   
+
+            // Render objects for shadow pass (mode 1)
+            RenderObjects(1, nullptr);
+        }
         else {
             // Render the scene from the player's view
             camera->SetPosition(camPosition);
             camera->SetRotation(camRotation);
             camera->SetProjection(projectionInfo);
 
-            // Bind the default framebuffer
-            // and clear the color and depth textures
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            // Use glViewport to specify the render
-            // area whose size is the resolution of the window
             glm::ivec2 resolution = window->GetResolution();
-
             glViewport(0, 0, resolution.x, resolution.y);
 
+            // Render light source indicator
             glm::mat4 modelMatrix = glm::mat4(1);
             modelMatrix = glm::translate(modelMatrix, light.pos);
             modelMatrix = glm::scale(modelMatrix, glm::vec3(0.01 * scale));
             RenderMesh(meshes["sphere"], shaders["Simple"], modelMatrix);
-        }
 
-        for (auto& table : tables) {
-            // Table logic
-
-            // Main body
-            Shader* shader = shaders["Table"];
-            shader->Use();
-
-            for (int i = 0; i < 6; i++) {
-                // Send uniforms to shaders
-                glUniform3f(glGetUniformLocation(shader->program, "control_p0"), table.control_points[i][0].x, table.control_points[i][0].y, table.control_points[i][0].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p1"), table.control_points[i][1].x, table.control_points[i][1].y, table.control_points[i][1].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p2"), table.control_points[i][2].x, table.control_points[i][2].y, table.control_points[i][2].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p3"), table.control_points[i][3].x, table.control_points[i][3].y, table.control_points[i][3].z);
-                glUniform1f(glGetUniformLocation(shader->program, "max_translate"), table.max_translate[i]);
-                glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), table.no_of_instances);
-
-                int shouldFlip = 0;
-                if (i < 4)
-                {
-                    glUniform1i(glGetUniformLocation(shader->program, "rotate"), i % 2);
-                    if (i == 2 || i == 3) shouldFlip = 1;
-                }
-                else {
-                    glUniform1i(glGetUniformLocation(shader->program, "rotate"), 0);
-                    if (i == 4) shouldFlip = 1;
-                }
-
-               glUniform1i(glGetUniformLocation(shader->program, "flip_normal_in"), shouldFlip);
-                Mesh* mesh = meshes["surface"];
-
-                // Draw the object instanced
-                RenderMeshInstanced(mesh, shader, glm::mat4(1), table.no_of_instances, step, TextureManager::GetTexture("wood.jpg"));
-            }
-
-            // Legs
-            shader = shaders["TableLeg"];
-            shader->Use();
-
-
-            for (int i = 0; i < 4; i++) {
-                float translateX = (i == 2 || i == 3) ? 4 * table.width / 5 : table.width / 5;
-                translateX += table.translation.x;
-
-                float translateZ = (i == 1 || i == 2) ? 4 * table.length / 5 : table.length / 5;
-                translateZ += table.translation.z;
-
-
-                // Send uniforms to shaders
-                glUniform3f(glGetUniformLocation(shader->program, "control_p0"), table.leg.control_points[0].x, table.leg.control_points[0].y, table.leg.control_points[0].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p1"), table.leg.control_points[1].x, table.leg.control_points[1].y, table.leg.control_points[1].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p2"), table.leg.control_points[2].x, table.leg.control_points[2].y, table.leg.control_points[2].z);
-                glUniform3f(glGetUniformLocation(shader->program, "control_p3"), table.leg.control_points[3].x, table.leg.control_points[3].y, table.leg.control_points[3].z);
-                glUniform3f(glGetUniformLocation(shader->program, "translate"), translateX, 0.0, translateZ);
-                glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), table.leg.max_rotate);
-                glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), table.leg.no_of_instances);
-
-
-                Mesh* mesh = meshes["surface"];
-
-                // Draw the object instanced
-                RenderMeshInstanced(mesh, shader, glm::mat4(1), table.leg.no_of_instances, step, TextureManager::GetTexture("wood.jpg"));
-            }
-        }
-
-        // Vases
-        for (auto& vase : vases) {
-            Shader *shader = shaders["Vase"];
-            shader->Use();
-
-            // Send uniforms to shaders
-            glUniform3f(glGetUniformLocation(shader->program, "control_p0"), vase.control_points[0].x, vase.control_points[0].y, vase.control_points[0].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p1"), vase.control_points[1].x, vase.control_points[1].y, vase.control_points[1].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p2"), vase.control_points[2].x, vase.control_points[2].y, vase.control_points[2].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p3"), vase.control_points[3].x, vase.control_points[3].y, vase.control_points[3].z);
-            glUniform3f(glGetUniformLocation(shader->program, "translate"), vase.translation.x, vase.translation.y, vase.translation.z);
-            glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), vase.max_rotate);
-            glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), vase.no_of_instances);
-
-
-            Mesh* mesh = meshes["surface"];
-
-            RenderMeshInstanced(mesh, shader, glm::mat4(1.0f), vase.no_of_instances, step, TextureManager::GetTexture("vase.jpg"));
-        }
-
-        // Lamp
-        {
-            Mesh* mesh = meshes["surface"];
-
-            // Body
-            Shader* shader = shaders["Lamp"];
-            shader->Use();
-
-            // Send uniforms to shaders
-            glUniform3f(glGetUniformLocation(shader->program, "control_p0"), lamp.body.control_points[0].x, lamp.body.control_points[0].y, lamp.body.control_points[0].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p1"), lamp.body.control_points[1].x, lamp.body.control_points[1].y, lamp.body.control_points[1].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p2"), lamp.body.control_points[2].x, lamp.body.control_points[2].y, lamp.body.control_points[2].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p3"), lamp.body.control_points[3].x, lamp.body.control_points[3].y, lamp.body.control_points[3].z);
-            glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), lamp.body.max_rotate);
-            glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), lamp.body.no_of_instances);
-
-            glm::mat4 model = glm::mat4(1);
-            model = glm::translate(model, lamp.body.translation);
-
-            RenderMeshInstanced(mesh, shader, model, lamp.body.no_of_instances, step, TextureManager::GetTexture("wood2.jpg"));
-
-            // Lamp
-            glUniform3f(glGetUniformLocation(shader->program, "control_p0"), lamp.head.control_points[0].x, lamp.head.control_points[0].y, lamp.head.control_points[0].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p1"), lamp.head.control_points[1].x, lamp.head.control_points[1].y, lamp.head.control_points[1].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p2"), lamp.head.control_points[2].x, lamp.head.control_points[2].y, lamp.head.control_points[2].z);
-            glUniform3f(glGetUniformLocation(shader->program, "control_p3"), lamp.head.control_points[3].x, lamp.head.control_points[3].y, lamp.head.control_points[3].z);
-            glUniform1f(glGetUniformLocation(shader->program, "max_rotate"), lamp.head.max_rotate);
-            glUniform1i(glGetUniformLocation(shader->program, "no_of_instances"), lamp.head.no_of_instances);
-
-            model = glm::mat4(1);
-            model = glm::translate(model, lamp.head.translation);
-            model = glm::rotate(model, glm::radians(75.0f), glm::vec3(1, 0, 1));
-
-
-            RenderMeshInstanced(mesh, shader, model, lamp.head.no_of_instances, step, TextureManager::GetTexture("white.png"));
-        }
-
-        // TV Screen
-        {
-            Shader* body_shader = shaders["TvBody"];
-            body_shader->Use();
-
-            glUniform1f(glGetUniformLocation(body_shader->program, "tv_length"), tv.length);
-
-            glm::mat4 modelMatrix = glm::mat4(1);
-            modelMatrix = glm::translate(modelMatrix, tv.position);
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0));
-
-            Mesh* body_mesh = meshes["surface"];
-            RenderMeshInstanced(body_mesh, body_shader, modelMatrix, 1, step, TextureManager::GetTexture("tv.jpg"));
-            
-            Shader* screen_shader = shaders["TvScreen"];
-            screen_shader->Use();
-
-            // Send uniforms to shaders
-            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p0"), tv.screen.control_points[0].x, tv.screen.control_points[0].y, tv.screen.control_points[0].z);
-            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p1"), tv.screen.control_points[1].x, tv.screen.control_points[1].y, tv.screen.control_points[1].z);
-            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p2"), tv.screen.control_points[2].x, tv.screen.control_points[2].y, tv.screen.control_points[2].z);
-            glUniform3f(glGetUniformLocation(screen_shader->program, "control_p3"), tv.screen.control_points[3].x, tv.screen.control_points[3].y, tv.screen.control_points[3].z);
-            glUniform1f(glGetUniformLocation(screen_shader->program, "max_rotate"), tv.screen.max_rotate);
-            glUniform1i(glGetUniformLocation(screen_shader->program, "no_of_instances"), tv.screen.no_of_instances);
-
-            modelMatrix = glm::mat4(1);
-            modelMatrix = glm::translate(modelMatrix, tv.screen.translation); // Translate to TV position
-
-            
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -tv.length / 2)); // Translate relative to the TV
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(tv.rotationY), glm::vec3(0, 1, 0)); // Roatate around the TV center
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, tv.length / 2)); // Translate to origin for rotation
-
-            Mesh* screen_mesh = meshes["surface"];
-            RenderMeshInstanced(screen_mesh, screen_shader, modelMatrix, tv.screen.no_of_instances, step, TextureManager::GetTexture("black.jpg"));
-        }
-
-        // Skybox
-        {
-            Shader* shader = shaders["Cubemap"];
-            shader->Use();
-            
-            glm::mat4 modelMatrix = glm::mat4(1);
-            modelMatrix = glm::translate(modelMatrix, cubemap.position);
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(cubemap.size));
-
-            // Bind the cubemap texture
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture_id);
-            glUniform1i(glGetUniformLocation(shader->program, "texture_cubemap"), 0);
-
-            RenderMeshInstanced(cubemap.body, shader, modelMatrix, 1, step, nullptr);
+            // Render objects for main view (mode 2, with TV reflection)
+            RenderObjects(2, nullptr);
         }
     }
 
     if (draw_framebuffer_textures) {
-        // Render on the screen the color and depth textures
-        // of the previously created framebuffer
         DrawFramebufferTextures();
     }
 }
@@ -1089,6 +1073,13 @@ void Tema1::OnKeyPress(int key, int mods)
         draw_framebuffer_textures = !draw_framebuffer_textures;
     }
 
+    // Debug mode controls: 0-6 keys to switch debug visualization
+    // 0 = normal reflection, 1 = normals, 2 = world_pos, 3 = view_dir,
+    // 4 = reflect_dir, 5 = cubemap sample, 6 = cubemap validity check
+    if (key >= GLFW_KEY_0 && key <= GLFW_KEY_6) {
+        debug_mode = key - GLFW_KEY_0;
+        std::cout << "Debug mode: " << debug_mode << std::endl;
+    }
 }
 
 
