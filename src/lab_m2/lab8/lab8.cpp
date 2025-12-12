@@ -142,6 +142,8 @@ void Lab8::GrayScale()
 
     glm::ivec2 imageSize = glm::ivec2(originalImage->GetWidth(), originalImage->GetHeight());
 
+    //for (int i = 0; i < )
+
     for (int i = 0; i < imageSize.y; i++)
     {
         for (int j = 0; j < imageSize.x; j++)
@@ -213,7 +215,7 @@ void Lab8::OnKeyPress(int key, int mods)
         cout << "Processing on GPU: " << (gpuProcessing ? "true" : "false") << endl;
     }
 
-    if (key - GLFW_KEY_0 >= 0 && key < GLFW_KEY_3)
+    if (key - GLFW_KEY_0 >= 0 && key < GLFW_KEY_6)
     {
         outputMode = key - GLFW_KEY_0;
 

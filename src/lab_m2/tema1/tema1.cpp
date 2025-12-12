@@ -149,7 +149,7 @@ void Tema1::InitLamp(float scale, glm::vec3 translation) {
     lamp.head.control_points[0] = glm::vec3(0.025 * scale, -lamp.head.height, 0.0);
     lamp.head.control_points[1] = glm::vec3(0.001 * scale, 2 * -lamp.head.height / 3, 0.0);
     lamp.head.control_points[2] = glm::vec3(0.026 * scale, -lamp.head.height / 3, 0.0);
-    lamp.head.control_points[3] = glm::vec3(0.0 * scale, 0.0, 0.0);
+    lamp.head.control_points[3] = glm::vec3(0.0, 0.0, 0.0);
 }
 
 void Tema1::InitTV(int scale, glm::vec3 position) {
@@ -382,8 +382,8 @@ void Tema1::Init()
 
     // Light vSource Details
     {
-        light.pos = glm::vec3(0.5, 0.5, 0.5) * (float)scale;
-        light.rot = glm::normalize(glm::vec3(-1, -1, -1));
+        light.pos = glm::vec3(0.26, 0.44, 0.84) * (float)scale;
+        light.rot = glm::normalize(glm::vec3(1, -1, -1));
 
         light.near_plane = 0.0001f;
         light.far_plane = 32.0f;
@@ -1080,10 +1080,10 @@ void Tema1::Update(float deltaTimeSeconds)
             glViewport(0, 0, resolution.x, resolution.y);
 
             // Render light source indicator
-            glm::mat4 modelMatrix = glm::mat4(1);
-            modelMatrix = glm::translate(modelMatrix, light.pos);
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.01 * scale));
-            RenderMesh(meshes["sphere"], shaders["Simple"], modelMatrix);
+            //glm::mat4 modelMatrix = glm::mat4(1);
+            // modelMatrix = glm::translate(modelMatrix, light.pos);
+            // modelMatrix = glm::scale(modelMatrix, glm::vec3(0.01 * scale));
+            // RenderMesh(meshes["sphere"], shaders["Simple"], modelMatrix);
 
             // Render objects for main view (mode 2, with TV reflection)
             RenderObjects(2, nullptr);
@@ -1119,6 +1119,21 @@ void Tema1::Update(float deltaTimeSeconds)
         }
     }
 
+    // Light flicker
+    if (light_on) {
+        if (rand() % 20 == 0) {
+            light_position = light.pos;
+            light.pos = glm::vec3(0, -1000, 0);
+            light_on = false;
+        }
+    }
+    else {
+        if (rand() % 10 == 0) {
+            light.pos = light_position;
+            light_on = true;
+        }
+    }
+
     // To make sure we render the screen again
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1137,7 +1152,7 @@ void Tema1::Update(float deltaTimeSeconds)
 
 void Tema1::FrameEnd()
 {
-    DrawCoordinateSystem();
+    //DrawCoordinateSystem();
 }
 
 
@@ -1211,35 +1226,6 @@ void Tema1::OnInputUpdate(float deltaTime, int mods)
 
     float moveSpeed = scale * 0.20f;
     float rotateSpeed = 1.5f;
-
-    if (!window->MouseHold(GLFW_MOUSE_BUTTON_RIGHT))
-    {
-        glm::vec3 up = glm::vec3(0, 1, 0);
-        glm::vec3 right = GetSceneCamera()->m_transform->GetLocalOXVector();
-        glm::vec3 forward = GetSceneCamera()->m_transform->GetLocalOZVector();
-        forward = glm::normalize(glm::vec3(forward.x, 0, forward.z));
-
-        if (window->KeyHold(GLFW_KEY_W)) light.pos -= forward * deltaTime * moveSpeed;
-        if (window->KeyHold(GLFW_KEY_A)) light.pos -= right * deltaTime * moveSpeed;
-        if (window->KeyHold(GLFW_KEY_S)) light.pos += forward * deltaTime * moveSpeed;
-        if (window->KeyHold(GLFW_KEY_D)) light.pos += right * deltaTime * moveSpeed;
-
-        if (window->KeyHold(GLFW_KEY_E)) light.pos += up * deltaTime * moveSpeed;
-        if (window->KeyHold(GLFW_KEY_Q)) light.pos -= up * deltaTime * moveSpeed;
-
-        if (window->KeyHold(GLFW_KEY_R)) {
-            glm::mat4 rotMatrix = glm::rotate(glm::mat4(1.0f), deltaTime * rotateSpeed, glm::vec3(0, 1, 0));
-            light.rot = glm::vec3(rotMatrix * glm::vec4(light.rot, 0.0f));
-        }
-
-        if (window->KeyHold(GLFW_KEY_F)) {
-            glm::mat4 rotMatrix = glm::rotate(glm::mat4(1.0f), -deltaTime * rotateSpeed, glm::vec3(0, 1, 0));
-            light.rot = glm::vec3(rotMatrix * glm::vec4(light.rot, 0.0f));
-        }
-
-        light.rot = glm::normalize(light.rot);
-    }
-
 }
 
 

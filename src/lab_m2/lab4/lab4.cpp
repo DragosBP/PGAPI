@@ -45,7 +45,7 @@ void Lab4::Init()
     no_of_generated_points = 10;            // number of points on a Bezier curve
     no_of_instances = 10;                    // number of instances (number of curves that contain the surface)
     max_translate = 0.0f;                   // for the translation surface, it's the distance between the first and the last curve
-    max_rotate = glm::radians(180.0f);      // for the rotation surface, it's the angle between the first and the last curve
+    max_rotate = glm::radians(360.0f);      // for the rotation surface, it's the angle between the first and the last curve
     surface_type = 0;
 
     // Define control points
