@@ -151,6 +151,8 @@ namespace m2
             glm::mat4 space_projection;
         };
         Light light;
+        bool light_on = true;
+        glm::vec3 light_position;
 
         // TV info
         struct TV {

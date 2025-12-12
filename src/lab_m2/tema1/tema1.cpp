@@ -1251,6 +1251,16 @@ void Tema1::OnKeyPress(int key, int mods)
     if (key == GLFW_KEY_F2) {
         draw_tv_framebuffer_textures = !draw_tv_framebuffer_textures;
     }
+    if (key == GLFW_KEY_L) {
+        if (light_on) {
+            light_position = light.pos;
+            light.pos = glm::vec3(0, -1000, 0);
+        } else {
+            light.pos = light_position;
+        }
+
+        light_on = !light_on;
+    }
 }
 
 
