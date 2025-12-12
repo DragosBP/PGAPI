@@ -74,7 +74,8 @@ float ShadowFactor()
     vec3 normal = normalize(world_normal);
     vec3 light_dir = normalize(light_position - world_position);
     
-    float bias = max(0.00001 * (1.0 - dot(normal, light_dir)), 0.000001);
+    float bias = max(0.00001 * (1.0 - dot(normal, light_dir)), 0.000001
+    );
 
     return (current_depth - bias) < closest_depth ? 1.0f : 0.0f;
 }
