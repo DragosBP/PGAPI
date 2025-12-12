@@ -10,12 +10,9 @@ uniform mat4 Model;
 
 // Output
 out int instance;
-out vec3 test_normal;
 
 void main()
 {
     instance = gl_InstanceID;
     gl_Position = Model * vec4(v_position, 1);
-
-    test_normal = mat3(Model) * v_normal;
 }

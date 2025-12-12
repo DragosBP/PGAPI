@@ -23,11 +23,12 @@ in int instance[2];
 
 vec3 rotateY(vec3 point, float u)
 {
-    float x = point.x * cos(u) - point.z *sin(u);
-    float z = point.x * sin(u) + point.z *cos(u);
+    float x = point.x * cos(u) - point.z * sin(u);
+    float z = point.x * sin(u) + point.z * cos(u);
+    
+    z *= 0.2;
     return vec3(x, point.y, z);
 }
-
 
 vec3 translateX(vec3 point, float t)
 {

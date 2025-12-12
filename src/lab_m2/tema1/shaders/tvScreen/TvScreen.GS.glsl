@@ -21,8 +21,10 @@ out vec3 world_normal;
 
 vec3 rotateY(vec3 point, float u)
 {
-    float x = point.x * cos(u) - point.z *sin(u);
-    float z = point.x * sin(u) + point.z *cos(u);
+    float x = point.x * cos(u) - point.z * sin(u);
+    float z = point.x * sin(u) + point.z * cos(u);
+    
+    z *= 0.2;
     return vec3(x, point.y, z);
 }
 
@@ -40,41 +42,44 @@ void main()
     const int NO_OF_GENERATED_POINTS = 10;
     
     int current_instance = instance[0];
-    
-    float v1 = float(current_instance) / float(no_of_instances);
-    float v2 = float(current_instance + 1) / float(no_of_instances);
-    
-    float angle1 = max_rotate * float(current_instance) / float(no_of_instances);
-    float angle2 = max_rotate * float(current_instance + 1) / float(no_of_instances);
-    float angle3 = max_rotate * float(current_instance + 2) / float(no_of_instances);
 
     for (int i = 0; i < NO_OF_GENERATED_POINTS - 1; i++) {
         float t1 = float(i) / float(NO_OF_GENERATED_POINTS - 1);
         float t2 = float(i + 1) / float(NO_OF_GENERATED_POINTS - 1);
         float t3 = float(i + 2) / float(NO_OF_GENERATED_POINTS - 1);
 
-        vec3 point_row1_a = rotateY(bezier(t1), angle1);
-        vec3 point_row1_b = rotateY(bezier(t2), angle1);
-        vec3 point_row1_c = rotateY(bezier(t3), angle1); // Lookahead for green_arrow
+        float v1 = float(current_instance) / float(no_of_instances);
+        float v2 = float(current_instance + 1) / float(no_of_instances);
 
-        vec3 point_row2_a = rotateY(bezier(t1), angle2);
-        vec3 point_row2_b = rotateY(bezier(t2), angle2);
-        vec3 point_row2_c = rotateY(bezier(t3), angle2); // Lookahead for green_arrow
+        float i_current = float(current_instance);
+        float i_next    = float(current_instance + 1);
+        float i_next2   = float(current_instance + 2);
 
-        vec3 point_row3_a = rotateY(bezier(t1), angle3);
-        vec3 point_row3_b = rotateY(bezier(t2), angle3);
+        vec3 point_row1_a = rotateY(bezier(t1), max_rotate * i_current / no_of_instances);
+        vec3 point_row1_b = rotateY(bezier(t2), max_rotate * i_current / no_of_instances);
+        vec3 point_row1_c = rotateY(bezier(t3), max_rotate * i_current / no_of_instances);
 
-        vec3 green_arrow;
-        vec3 red_arrow;
+        vec3 point_row2_a = rotateY(bezier(t1), max_rotate * i_next / no_of_instances);
+        vec3 point_row2_b = rotateY(bezier(t2), max_rotate * i_next / no_of_instances);
+        vec3 point_row2_c = rotateY(bezier(t3), max_rotate * i_next / no_of_instances);
+
+        vec3 point_row3_a = rotateY(bezier(t1), max_rotate * i_next2 / no_of_instances);
+        vec3 point_row3_b = rotateY(bezier(t2), max_rotate * i_next2 / no_of_instances);
+
+        vec3 green_arrow; 
+        vec3 red_arrow;   
+        vec3 raw_normal;
 
         // 1A
         texture_coord = vec2(t1, v1);
         world_position = vec3(Model * vec4(point_row1_a, 1));
         
-        green_arrow = normalize(point_row1_b - point_row1_a);
-        red_arrow   = normalize(point_row2_a - point_row1_a);
-        world_normal = normalize(mat3(Model) * cross(green_arrow, red_arrow));
-        
+        green_arrow = normalize(point_row1_b - point_row1_a); // Tangent along curve
+        red_arrow   = normalize(point_row2_a - point_row1_a); // Tangent along rotation
+        raw_normal = cross(green_arrow, red_arrow);
+        // Apply inverse transpose for non-uniform scaling: scale Z back by 1/0.2 = 5.0
+        world_normal = normalize(mat3(Model) * vec3(raw_normal.x, raw_normal.y, raw_normal.z * 5.0));
+
         gl_Position = Projection * View * Model * vec4(point_row1_a, 1);  EmitVertex();
         
         // 1B
@@ -88,8 +93,9 @@ void main()
             green_arrow = normalize(point_row1_b - point_row1_a);
         }
         red_arrow   = normalize(point_row2_b - point_row1_b);
-        world_normal = normalize(mat3(Model) * cross(green_arrow, red_arrow));
-        
+        raw_normal = cross(green_arrow, red_arrow);
+        world_normal = normalize(mat3(Model) * vec3(raw_normal.x, raw_normal.y, raw_normal.z * 5.0));
+
         gl_Position = Projection * View * Model * vec4(point_row1_b, 1);  EmitVertex();
 
         // 2A
@@ -98,7 +104,8 @@ void main()
 
         green_arrow = normalize(point_row2_b - point_row2_a);
         red_arrow   = normalize(point_row3_a - point_row2_a);
-        world_normal = normalize(mat3(Model) * cross(green_arrow, red_arrow));
+        raw_normal = cross(green_arrow, red_arrow);
+        world_normal = normalize(mat3(Model) * vec3(raw_normal.x, raw_normal.y, raw_normal.z * 5.0));
 
         gl_Position = Projection * View * Model * vec4(point_row2_a, 1);  EmitVertex();
 
@@ -106,7 +113,6 @@ void main()
         texture_coord = vec2(t2, v2);
         world_position = vec3(Model * vec4(point_row2_b, 1));
 
-        
         if (i < NO_OF_GENERATED_POINTS - 2) {
             green_arrow = normalize(point_row2_c - point_row2_b);
         } else {
@@ -114,7 +120,8 @@ void main()
             green_arrow = normalize(point_row2_b - point_row2_a);
         }
         red_arrow   = normalize(point_row3_b - point_row2_b);
-        world_normal = normalize(mat3(Model) * cross(green_arrow, red_arrow));
+        raw_normal = cross(green_arrow, red_arrow);
+        world_normal = normalize(mat3(Model) * vec3(raw_normal.x, raw_normal.y, raw_normal.z * 5.0));
 
         gl_Position = Projection * View * Model * vec4(point_row2_b, 1);  EmitVertex();
 
